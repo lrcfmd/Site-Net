@@ -8,11 +8,15 @@ from pymatgen.transformations.standard_transformations import *
 from matbench.bench import MatbenchBenchmark
 from pymatgen.transformations.advanced_transformations import *
 import scipy as sp
+import argparse
+import sys
+from os.path import exists
 
 class OrthorhombicSupercellTransform(AbstractTransformation):
     """
     This transformation generates a combined scaled and shear of the provided unit cell to achieve a roughly
-    OrthorhomicSupercell with roughly equal side lengths. Gets more accurate the larger the difference in size between primitive and supercell 
+    OrthorhomicSupercell with roughly equal side lengths. Gets more accurate the larger the difference in size between primitive and supercell
+    Robust alternative to the existing cubic supercell method that guarantees the inverse matrix is not singular when rounded. 
     """
 
     def __init__(self, N_Atoms):
@@ -74,34 +78,34 @@ class OrthorhombicSupercellTransform(AbstractTransformation):
         """Returns: False"""
         return False
 
-def order_disordered(struct):
-    #Unused here because none of the structures in the dataset are disordered,
-    primitive_trans = PrimitiveCellTransformation()
-    struct = primitive_trans.apply_transformation(struct)
-    prim_size = len(struct)
-    orthog = OrthorhombicSupercellTransform(500)
-    supercell = orthog.apply_transformation(struct)
-    images = len(supercell)//len(struct)
-    if not supercell.is_ordered:
-        oxi_dec = AutoOxiStateDecorationTransformation()
-        supercell= oxi_dec.apply_transformation(supercell)
-        order_trans = OrderDisorderedStructureTransformation()
-        supercell = order_trans.apply_transformation(supercell)
-    return supercell,prim_size,images
+#Processes the pymatgen structure provided, first transforming to a primitive, and then upscaling to a cubic supercell of a given size if enabled
+class process_structures():
+    def __init__(self,cubic_supercell,supercell_size):
+        self.cubic_supercell = cubic_supercell
+        self.supercell_size = supercell_size
+    def process_structure(self,struct):
+        primitive_trans = PrimitiveCellTransformation()
+        struct = primitive_trans.apply_transformation(struct)
+        prim_size = len(struct)
+        if self.cubic_supercell:
+            orthog = OrthorhombicSupercellTransform(self.supercell_size)
+            supercell = orthog.apply_transformation(struct)
+        else:
+            supercell = struct
+        images = len(supercell)//len(struct)
+        #Matbench band gap dataset does not contain disorder, but this code is general
+        if not supercell.is_ordered:
+            oxi_dec = AutoOxiStateDecorationTransformation()
+            supercell= oxi_dec.apply_transformation(supercell)
+            order_trans = OrderDisorderedStructureTransformation()
+            supercell = order_trans.apply_transformation(supercell)
+        return supercell,prim_size,images
 
-
-
-def generate_dist_and_coulomb(struc_and_target):
+def generate_crystal_dictionary(struc_and_target):
     struc = struc_and_target[0]
-    coulomb_matrix = struc_feat.CoulombMatrix(flatten=False,).featurize(
-        struc
-    )[0]
-    distance_matrix = struc.distance_matrix
     composition = struc.composition.formula
     crystal_dict = {
         "structure": struc,
-        "coulomb": coulomb_matrix,
-        "distance": distance_matrix,
         "composition": composition,
         "target": struc_and_target[1],
         "prim_size": struc_and_target[2],
@@ -114,10 +118,8 @@ def divide_chunks(l, n):
     for i in range(0, len(l), n):
         yield l[i : i + n]
 
-
 def h5_dataset_from_structure_list(hdf5_file_name, structure_dictionary):
     f = h5py.File(hdf5_file_name, "w", libver="latest")
-    print("Generating distance and coulomb matricies from structures")
     keys_list = list(structure_dictionary.keys())
     keys_chunked = list(divide_chunks(keys_list, 2048))
     for keys in tqdm(keys_chunked):
@@ -127,7 +129,7 @@ def h5_dataset_from_structure_list(hdf5_file_name, structure_dictionary):
             i
             for i in tqdm(
                 pool.imap(
-                    generate_dist_and_coulomb,
+                    generate_crystal_dictionary,
                     values,
                 )
             )
@@ -137,11 +139,9 @@ def h5_dataset_from_structure_list(hdf5_file_name, structure_dictionary):
         pool.terminate()
         # crystal dict of dicts
         cdd = {key: value for key, value in zip(keys, processed_values)}
-        print("dumping structures + matricies to hdf5 file")
+        print("dumping processed structures to hdf5 file")
         for key in tqdm(cdd.keys()):
             group = f.require_group(str(key))
-            # group.create_dataset("coulomb_matrix", data=cdd[key]["coulomb"])
-            # group.create_dataset("distance_matrix", data=cdd[key]["distance"])
             group.create_dataset("composition", data=cdd[key]["composition"])
             group.create_dataset(
                 "pymatgen_structure", data=np.void(pk.dumps(cdd[key]["structure"]))
@@ -150,51 +150,54 @@ def h5_dataset_from_structure_list(hdf5_file_name, structure_dictionary):
             group.create_dataset("prim_size", data=cdd[key]["prim_size"])
             group.create_dataset("images", data=cdd[key]["images"])
 
-########################################################################################################################
-from os.path import exists
+def dataset_to_hdf5(inputs,outputs,h5_file_name,pool,fold_n,supercell,supercell_size):
+     #Create tuples of crystal index names, pymatgen structures, and properties
+        structure_list = [(i, j, k) for i, j, k in zip(inputs.index, inputs, outputs)]
+        #Transform the structures into primitive unit cells, and then upscale if appropiate
+        processor = process_structures(supercell,supercell_size)
+        processed_structures = [
+            i for i in tqdm(pool.imap(processor.process_structure, [i[1] for i in structure_list]))
+        ]
+        #Create tuple of processed structure, target proprety, size of primitive unit cell, and number of images
+        processed_structures = [
+            (processed_structures[i][0], structure_list[i][2],processed_structures[i][1],processed_structures[i][2])
+            for i in range(len(structure_list))
+        ]
+        #Create a dictionary mapping each dataset index to the generated tuples
+        structure_dict = {i[0]: j for i, j in tqdm(zip(structure_list, processed_structures))}
+        #Initialize the h5 database with the pymatgen structures, the target, the primitive size, and the number of images
+        if not exists("Data/Matbench/" + h5_file_name + "_" + str(fold_n) + ".hdf5"):
+            h5_dataset_from_structure_list("Data/Matbench/" + h5_file_name + "_" + str(fold_n) + ".hdf5", structure_dict)
+
 if __name__ == "__main__":
-    import pickle as pk
-    from matbench.bench import MatbenchBenchmark
-    import sys
-    pool = Pool(cpu_count()//3)
+    #Arguments for whether to generate primitive cells or supercells, and what size the supercells should be capped at
+    parser = argparse.ArgumentParser(description="ml options")
+    parser.add_argument('--cubic_supercell', default=False, action='store_true')
+    parser.add_argument('--primitive', default=False, action='store_true')
+    parser.add_argument("-s", "--supercell_size", default=100,type=int)
+    args = parser.parse_args()  
+    if args.cubic_supercell:
+        h5_file_name = "matbench_mp_gap_cubic_" + str(args.supercell_size)
+        supercell = True
+        supercell_size = args.supercell_size
+    elif args.primitive:
+        h5_file_name = "matbench_mp_gap_primitive"
+        supercell = False
+        supercell_size = None
+    else:
+        raise(Exception("Need to specify either --primitive or --cubic_supercell on commandline, with -s argument controlling supercell size"))
+    #pool = Pool(cpu_count()-1)
+    pool = Pool(cpu_count()//4)
     task = MatbenchBenchmark().matbench_mp_gap
     task.load()
     fold_n = 1
     for fold in task.folds[:1]:
-
+        #Get the data from matbench
         train_inputs, train_outputs = task.get_train_and_val_data(fold)
-
         test_inputs,test_outputs = task.get_test_data(fold,include_target=True)
-        
-        structure_list = [[i, j, k] for i, j, k in zip(train_inputs.index, train_inputs, train_outputs)]
-        
-        ordered_structures = [
-            i for i in tqdm(pool.imap(order_disordered, [i[1] for i in structure_list]))
-        ]
-        ordered_structures = [
-            [ordered_structures[i][0], structure_list[i][2],ordered_structures[i][1],ordered_structures[i][2]]
-            for i in range(len(structure_list))
-        ]
-        structure_dict = {i[0]: j for i, j in tqdm(zip(structure_list, ordered_structures))}
-        #if not exists("Data/CV_hdf5/matbench_mp_gap_cubic_500_COO_train" + "_" + str(fold_n) + ".hdf5"):
-            #h5_dataset_from_structure_list("Data/CV_hdf5/matbench_mp_gap_cubic_500_COO_train" + "_" + str(fold_n) + ".hdf5", structure_dict)
-        
-        #test data
-        
-        structure_list = [[i, j, k] for i, j,k in zip(test_inputs.index, test_inputs,test_outputs)]
-        
-        ordered_structures = [
-            i for i in tqdm(pool.imap(order_disordered, [i[1] for i in structure_list]))
-        ]
-        ordered_structures = [
-            [ordered_structures[i][0], structure_list[i][2],ordered_structures[i][1],ordered_structures[i][2]]
-            for i in range(len(structure_list))
-        ]
-
-        structure_dict = {i[0]: j for i, j in tqdm(zip(structure_list, ordered_structures))}
-        if not exists("Data/CV_hdf5/matbench_mp_gap_cubic_500_COO_test" + "_" + str(fold_n) + ".hdf5"):
-            h5_dataset_from_structure_list("Data/CV_hdf5/matbench_mp_gap_cubic_500_COO_test" + "_" + str(fold_n) + ".hdf5", structure_dict)
-        
+        #Process the pymatgen structures and generate hdf5 database for training
+        dataset_to_hdf5(train_inputs,train_outputs,h5_file_name + "_train",pool,fold_n,supercell,supercell_size)
+        dataset_to_hdf5(test_inputs,test_outputs,h5_file_name + "_test",pool,fold_n,supercell,supercell_size)        
         fold_n += 1
     pool.close()
     pool.join()
