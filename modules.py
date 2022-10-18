@@ -120,7 +120,7 @@ af_dict = {"relu": nn.ReLU, "mish": mish,"none":FakeModule}
 
 class SiteNetAttentionBlock(nn.Module):
     def __init__(
-        self, site_dim, interaction_dim, glob_dim, heads=4, af="relu", set_norm="batch",tdot=False,k_softmax=-1,attention_hidden_layers=[256,256]
+        self, site_dim, interaction_dim, heads=4, af="relu", set_norm="batch",tdot=False,k_softmax=-1,attention_hidden_layers=[256,256]
     ):
         super().__init__()
         #Number of attention heads
@@ -140,9 +140,9 @@ class SiteNetAttentionBlock(nn.Module):
         #Maps the bond feautres to the new interaction features (g^I)
         self.bond_to_Interaction_Features = pairwise_seq_af_norm([(site_dim * 2 + interaction_dim) * heads, interaction_dim * heads],af_dict[af],pairwise_norm_dict[set_norm])
         #Maps the bond features to the attention features (g^A)
-        self.bond_to_attention_features = pairwise_seq_af_norm([(site_dim*2 + interaction_dim) * heads, glob_dim],af_dict[af],pairwise_norm_dict[set_norm])
+        self.bond_to_attention_features = pairwise_seq_af_norm([(site_dim*2 + interaction_dim) * heads, site_dim],af_dict[af],pairwise_norm_dict[set_norm])
         #Linear layer on new site features prior to the next attention block / pooling
-        self.global_linear = set_seq_af_norm([glob_dim * heads, glob_dim * heads],af_dict[af],set_norm_dict[set_norm])
+        self.global_linear = set_seq_af_norm([site_dim * heads, site_dim * heads],af_dict[af],set_norm_dict[set_norm])
     @staticmethod
     def head_reshape(x,heads):
         return x.reshape(*x.shape[:-1],x.shape[-1]//heads,heads)
@@ -180,7 +180,6 @@ class SiteNetEncoder(nn.Module):
         attention_blocks=4,
         attention_heads=4,
         site_dim_per_head=64,
-        global_embedding_dim_per_block_per_head=16,
         pre_pool_layers=[256, 256],
         post_pool_layers=[256, 256],
         activation_function="relu",
@@ -219,7 +218,6 @@ class SiteNetEncoder(nn.Module):
             SiteNetAttentionBlock(
                 site_dim_per_head,
                 attention_dim_interaction,
-                global_embedding_dim_per_block_per_head,
                 af=activation_function,
                 heads=attention_heads,
                 set_norm=set_norm,
@@ -235,7 +233,7 @@ class SiteNetEncoder(nn.Module):
             nn.Linear(i, j)
             for i, j in pairwise(
                 (
-                    global_embedding_dim_per_block_per_head
+                    site_dim_per_head
                     * attention_blocks
                     * attention_heads,
                     *pre_pool_layers,
@@ -330,7 +328,6 @@ class SiteNetDIMGlobal(nn.Module):
         attention_blocks=4,
         attention_heads=4,
         site_dim_per_head=64,
-        global_embedding_dim_per_block_per_head=16,
         pre_pool_layers=[256, 256],
         post_pool_layers=[256, 256],
         classifier_hidden_layers=[64],
@@ -364,29 +361,13 @@ class SiteNetDIMGlobal(nn.Module):
             attention_dim_interaction * attention_heads
         )
         self.distance_cutoff=distance_cutoff
-
-        #Attention Layers
-        self.Attention_Blocks = nn.ModuleList(
-            SiteNetAttentionBlock(
-                site_dim_per_head,
-                attention_dim_interaction,
-                global_embedding_dim_per_block_per_head,
-                af=activation_function,
-                heads=attention_heads,
-                set_norm=set_norm,
-                tdot=tdot,
-                k_softmax=k_softmax,
-                attention_hidden_layers = attention_hidden_layers
-            )
-            for i in range(attention_blocks)
-        )
         # Pooling Layers
         self.sym_func = sym_func
         self.pre_pool_layers = nn.ModuleList(
             nn.Linear(i, j)
             for i, j in pairwise(
                 (
-                    global_embedding_dim_per_block_per_head
+                    site_dim_per_head
                     * attention_blocks
                     * attention_heads,
                     *pre_pool_layers,
