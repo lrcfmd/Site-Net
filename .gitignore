@@ -1,0 +1,11 @@
+*.hdf5
+lightning_logs/*
+*.sdic
+*.pyc
+*.csv
+histograms/*
+*.ckpt
+*.ckpt
+Data/*
+*.tar.gz
+*.ipynb

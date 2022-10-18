@@ -1,0 +1,82 @@
+Batch_Size: 18
+dynamic_batch: !!bool False
+Interaction_Features:
+- kwargs:
+    polynomial_degree: 1
+  name: distance_matrix
+- kwargs:
+    polynomial_degree: 1
+    log: !!bool True
+    max_clip: 10
+  name: non_sine_coulomb_matrix
+Learning_Rate: 0.0008125971481941902
+Max_Samples: 1000000000
+Optimizer:
+  Kwargs:
+    amsgrad: true
+    eps: 1.0e-07
+    weight_decay: 0.0001
+  Name: AdamW
+Site_Features:
+- Featurizer_KArgs:
+    properties:
+    - Number
+    - AtomicWeight
+    - Row
+    - Column
+    - FirstIonizationEnergy
+    - Electronegativity
+    - AtomicRadius
+    - Density
+  Featurizer_PArgs: []
+  name: SiteElementalProperty
+Trainer kwargs:
+  accumulate_grad_batches: 1
+  auto_lr_find: false
+  max_epochs: 100000000
+activation_function: mish
+alpha: 1.0
+attention_blocks: 2
+attention_dim_interaction: 16
+attention_dim_per_head: 8
+attention_heads: 3
+attention_hidden_layers:
+- 225
+attention_hidden_layers_n: 1
+attention_hidden_layers_size: 225
+beta: 1.0
+decoder_hidden_layers:
+- 32
+- 32
+interaction_feature_size: 2
+embedding_size: 92
+global_embedding_dim_per_block_per_head: 30
+k_softmax: -1
+lin_norm: layer
+site_dim_per_head: 30
+pipeline_name: Agni_Elem_test
+pool_strat: both
+pooling_heads: 4
+pooling_seeds: 1
+post_pool_layers:
+- 200
+- 200
+- 200
+post_pool_layers_n: 3
+post_pool_layers_size: 200.0
+pre_pool_layers:
+- 94
+pre_pool_layers_n: 1
+pre_pool_layers_size: 94.0
+last_af_func: TReLU
+regularization strategy: VAE
+sample_dropout: 0
+seed_dim_per_head: 128
+set_norm: layer
+site_feature_size: 8
+sparse_rho: 0.05
+sym_func: mean
+tdot: false
+distance_cutoff: -2
+label: "Final_HParams"
+
