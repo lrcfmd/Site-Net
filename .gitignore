@@ -8,3 +8,4 @@ lightning_logs/*
 *.ckpt
 *.tar.gz
 *.ipynb
+*.txt
