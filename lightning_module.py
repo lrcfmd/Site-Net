@@ -1,29 +1,21 @@
-from ast import Global
 import torch
 import pytorch_lightning as pl
 from h5_handler import *
 from torch.utils.data import DataLoader, random_split
 from multiprocessing import cpu_count
-from torch.nn.utils.rnn import pad_sequence
 from torch.nn.functional import pad
 from modules import (
     SiteNetEncoder,SiteNetDIMAttentionBlock,SiteNetDIMGlobal
 )
-import sys
 import torch.nn.functional as F
-from torch.nn import Softmax as smax
 import numpy as np
 from tqdm import tqdm
 from torch.optim.lr_scheduler import *
 from torch import nn
-from random import randint
-from torch_scatter import scatter_std,scatter_mean,segment_coo,segment_csr
-from torch.utils.data import BatchSampler,RandomSampler,Sampler,SequentialSampler,SubsetRandomSampler
-import random
+from torch_scatter import segment_csr
+from torch.utils.data import RandomSampler,Sampler
 
-optim_dict = torch.optim.__dict__
-site_feauturizers_dict = matminer.featurizers.site.__dict__
-
+#Clamps negative predictions to zero without interfering with the gradients. "Transparent" ReLU
 class TReLU(torch.autograd.Function):
     """
     A transparent version of relu that has a linear gradient but sets negative values to zero,
@@ -45,81 +37,14 @@ class TReLU(torch.autograd.Function):
         """
         return grad_output
 
-#Dictionary of activation functions
+#Dictionaries allow programatic access of torch modules according to the config file
+optim_dict = torch.optim.__dict__
+site_feauturizers_dict = matminer.featurizers.site.__dict__
 af_dict = {"identity":lambda x:x,"relu":nn.functional.relu,"softplus":nn.functional.softplus,"TReLU":TReLU.apply}
 
-class interaction_featurizer:
-    def __init__(self, base_function, log=False, polynomial_degree=1, max_clip=25):
-        self.base_function = base_function
-        self.polynomial = polynomial_degree
-        self.log = log
-        self.max_clip = max_clip
 
-    def featurize(self, structure):
-        base_matrix = self.base_function(structure)
-        base_matrix = base_matrix ** self.polynomial
-        if self.log:
-            base_matrix = np.log(base_matrix)
-        base_matrix = np.clip(base_matrix, -self.max_clip, self.max_clip)
-        return base_matrix
-
-
-def distance_matrix(structure, func=lambda _: _):
-    distance_matrix = func(structure.distance_matrix)
-    return distance_matrix
-
-
-def coulomb_matrix(structure):
-    return structure_feat.CoulombMatrix(diag_elems=False, flatten=False).featurize(
-        structure
-    )[0]
-
-
-interaction_featurizer_Functions = {
-    "distance_matrix": distance_matrix,
-    "reciprocal_square_distance_matrix": lambda structure_l: distance_matrix(
-        structure_l, func=lambda _: _ ** -2
-    ),
-    "coulomb_matrix": coulomb_matrix,
-}
-
-
-def structure_processing_site_features(structure, Site_Featurizers, interaction_featurizers):
-    try:
-        return_dict = {}
-        if Site_Featurizers != None:
-
-            return_dict["Site_Feature_Tensor"] = np.array(
-                [
-                    np.concatenate(
-                        [
-                            Featurizer.featurize(structure, i)
-                            for Featurizer in Site_Featurizers
-                        ],
-                        axis=0,
-                    )
-                    for i in range(len(structure))
-                ]
-            )
-        else:
-            return_dict["Site_Feature_Tensor"] = np.empty((len(structure), 0))
-        if interaction_featurizers != None:
-            return_dict["Interaction_Feature_Tensor"] = np.stack(
-                [Featurizer.featurize(structure) for Featurizer in interaction_featurizers],
-                axis=2,
-            )
-        else:
-            return_dict["Interaction_Feature_Tensor"] = np.empty(
-                (len(structure), len(structure), 0)
-            )
-        return return_dict
-
-    except Exception as e:
-        traceback.print_exc()
-        print(e)
-        return None
-
-#Constructs a batch dictionary from the list of outputs from the h5 file
+#Constructs a batch dictionary from the list of property dictionaries returned by the h5 loader
+#Also performs necessary zero padding on the j axis and creates the batch masks
 def collate_fn(batch, inference=False):
     batch_dict = {}
     # Unpack Crystal Features Dictionaries
@@ -311,47 +236,6 @@ class SiteNet(pl.LightningModule):
         else:
             return Encoding
 
-    #Feed in a dataframe with cif files in the "structure" column and get predictions
-    def prepare_dataframe(
-        self, df, structure_column_name="structure", input_dict_column_name="DIM_input"
-    ):
-        structures = df[structure_column_name]
-        if self.config["Site_Features"] != None:
-            Site_Featurizers = [
-                site_feauturizers_dict[feat_dict["name"]](
-                    *feat_dict["Featurizer_PArgs"], **feat_dict["Featurizer_KArgs"]
-                )
-                for feat_dict in self.config["Site_Features"]
-            ]
-        else:
-            Site_Featurizers = None
-        interaction_featurizers = [
-            interaction_featurizer(
-                interaction_featurizer_Functions[feat_dict["name"]], **feat_dict["kwargs"]
-            )
-            for feat_dict in self.config["Interaction_Features"]
-        ]
-        with multiprocessing.Pool(cpu_count() * 2) as pool:
-            iterable = [[i, Site_Featurizers, interaction_featurizers] for i in structures]
-            print("calculating site features")
-            results = list(
-                tqdm(
-                    pool.istarmap(
-                        structure_processing_site_features,
-                        iterable,
-                    ),
-                    total=len(iterable),
-                )
-            )
-            print("Reading matricies / elemental data from structures")
-            results = [
-                structure_processing_static(i, j)
-                for i, j in tqdm(zip(structures, results))
-            ]
-
-        df[input_dict_column_name] = results
-        return df
-
     def shared_step(
         self,
         batch_dictionary,
@@ -498,47 +382,6 @@ class SiteNet_DIM(pl.LightningModule):
             return [Encoding,targets]
         else:
             return Encoding
-
-    #Feed in a dataframe with cif files in the "structure" column and get predictions
-    def prepare_dataframe(
-        self, df, structure_column_name="structure", input_dict_column_name="DIM_input"
-    ):
-        structures = df[structure_column_name]
-        if self.config["Site_Features"] != None:
-            Site_Featurizers = [
-                site_feauturizers_dict[feat_dict["name"]](
-                    *feat_dict["Featurizer_PArgs"], **feat_dict["Featurizer_KArgs"]
-                )
-                for feat_dict in self.config["Site_Features"]
-            ]
-        else:
-            Site_Featurizers = None
-        interaction_featurizers = [
-            interaction_featurizer(
-                interaction_featurizer_Functions[feat_dict["name"]], **feat_dict["kwargs"]
-            )
-            for feat_dict in self.config["Interaction_Features"]
-        ]
-        with multiprocessing.Pool(cpu_count() * 2) as pool:
-            iterable = [[i, Site_Featurizers, interaction_featurizers] for i in structures]
-            print("calculating site features")
-            results = list(
-                tqdm(
-                    pool.istarmap(
-                        structure_processing_site_features,
-                        iterable,
-                    ),
-                    total=len(iterable),
-                )
-            )
-            print("Reading matricies / elemental data from structures")
-            results = [
-                structure_processing_static(i, j)
-                for i, j in tqdm(zip(structures, results))
-            ]
-
-        df[input_dict_column_name] = results
-        return df
 
     #Makes sure the model is in training mode, passes a batch through the model, then back propogates
     def training_step(self, batch_dictionary, batch_dictionary_idx):

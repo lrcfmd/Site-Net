@@ -187,13 +187,13 @@ class lightning_module_with_interaction_returns(SiteNet):
         Logger_list = []
         print("Inference in batches of %s" % batch_size)
         for inference_batch in tqdm(lob):
-            td = collate_fn(inference_batch, inference=True)
-            Attention_Mask = td["Attention_Mask"]
-            Site_Feature = td["Site_Feature_Tensor"]
-            Atomic_ID = td["Atomic_ID"]
-            interaction_Features = td["Interaction_Feature_Tensor"]
-            Oxidation_State = td["Oxidation_State"]
-            Batch_Mask = td["Batch_Mask"]
+            batch_dictionary = collate_fn(inference_batch, inference=True)
+            Attention_Mask = batch_dictionary["Attention_Mask"]
+            Site_Feature = batch_dictionary["Site_Feature_Tensor"]
+            Atomic_ID = batch_dictionary["Atomic_ID"]
+            interaction_Features = batch_dictionary["Interaction_Feature_Tensor"]
+            Oxidation_State = batch_dictionary["Oxidation_State"]
+            Batch_Mask = batch_dictionary["Batch_Mask"]
             concat_embedding = self.input_handler(
                 Atomic_ID, [Site_Feature, Oxidation_State]
             )
@@ -204,14 +204,14 @@ class lightning_module_with_interaction_returns(SiteNet):
                     Attention_Mask,
                     Batch_Mask,
                 )
-                logger.append(td["Structure"])
+                logger.append(batch_dictionary["Structure"])
                 Encoding = lightning_af_dict[self.config["last_af_func"]](self.decoder(Encoding))
                 if self.config["regularization strategy"] == "l1_sparse":
                     Encoding = F.relu(Encoding)
                 if self.config["regularization strategy"] == "kl_sparse":
                     Encoding = F.relu(Encoding)
                 Encoding_list.append(Encoding)
-                targets_list.append(td["target"])
+                targets_list.append(batch_dictionary["target"])
                 Logger_list.append(logger)
         Encoding = torch.cat(Encoding_list, dim=0)
         targets = torch.cat(targets_list, dim=0)

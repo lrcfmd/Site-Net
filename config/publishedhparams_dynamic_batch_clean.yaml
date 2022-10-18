@@ -1,3 +1,5 @@
+label: "PaperParams"
+
 ###############
 #Features used#
 ###############
@@ -68,6 +70,7 @@ attention_dim_interaction: 16
 
 attention_heads: 3
 attention_blocks: 2
+distance_cutoff: -2
 attention_hidden_layers:
 - 225
 k_softmax: -1
@@ -81,7 +84,3 @@ post_pool_layers:
 - 200
 - 200
 last_af_func: TReLU
-
-distance_cutoff: -2
-label: "Final_HParams_dynamic_batching_largerbatch"
-

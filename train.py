@@ -1,9 +1,7 @@
 import pytorch_lightning as pl
-import sys
 from matminer.featurizers.site import *
 import matminer
 site_feauturizers_dict = matminer.featurizers.site.__dict__
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from lightning_module import (
     basic_callbacks,
     DIM_h5_Data_Module,
@@ -11,11 +9,8 @@ from lightning_module import (
 )
 from lightning_module import basic_callbacks
 import yaml
-from h5_handler import torch_h5_cached_loader
 from pytorch_lightning.callbacks import *
 import argparse
-from compress_pickle import dump, load
-import collections.abc as container_abcs
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 compression_alg = "gzip"
@@ -34,7 +29,7 @@ def train_model(config, Dataset):
     mode="min",
 )
     trainer = pl.Trainer(
-        gpus=int(args.num_gpus),
+        gpus=1,
         callbacks=[
             basic_callbacks(filename=args.h5_file_name + str(config["label"])),
             checkpoint_callback
@@ -53,15 +48,10 @@ def train_model(config, Dataset):
     model = SiteNet(config)
     trainer.fit(model, Dataset)
 
-
-import pickle as pk
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ml options")
     parser.add_argument("-c", "--config", default="test")
-    parser.add_argument("-p", "--pickle", default=0)
     parser.add_argument("-l", "--load_checkpoint", default=0)
-    parser.add_argument("-g", "--num_gpus", default=1)
     parser.add_argument("-f", "--h5_file_name", default="null")
     parser.add_argument("-o", "--overwrite", default=False)
     parser.add_argument("-d", "--debug", default=False)
@@ -78,13 +68,7 @@ if __name__ == "__main__":
         )
     config["h5_file"] = args.h5_file_name
     if bool(args.debug) == True:
-        config["Max_Samples"] = 10000
-    if int(args.pickle) == 1:
-        print("Loading Pickle")
-        Dataset = load(open("db_pickle.pk", "rb"), compression=compression_alg)
-        Dataset.batch_size = config["Batch_Size"]
-        print("Pickle Loaded")
-        print("--------------")
+        config["Max_Samples"] = 1000
     else:
         Dataset = DIM_h5_Data_Module(
             config,
@@ -92,11 +76,4 @@ if __name__ == "__main__":
             ignore_errors=False,
             overwrite=bool(args.overwrite),
         )
-        if int(args.pickle) == 2:
-            dump(Dataset, open("db_pickle.pk", "wb"), compression=compression_alg)
-            print("Pickle Dumped")
-        if int(args.pickle) == 3:
-            dump(Dataset, open("db_pickle.pk", "wb"), compression=compression_alg)
-            print("Pickle Dumped")
-            sys.exit()
     train_model(config, Dataset)
