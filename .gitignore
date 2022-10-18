@@ -3,9 +3,8 @@ lightning_logs/*
 *.sdic
 *.pyc
 *.csv
-histograms/*
+*.png
 *.ckpt
 *.ckpt
-Data/*
 *.tar.gz
 *.ipynb
