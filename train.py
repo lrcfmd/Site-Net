@@ -23,20 +23,20 @@ compression_alg = "gzip"
 def train_model(config, Dataset):
     if int(args.load_checkpoint) == 1:
         print(config["h5_file"])
-        resume_from_checkpoint = args.fold_name + str(config["label"]) + ".ckpt"
+        resume_from_checkpoint = args.h5_file_name + str(config["label"]) + ".ckpt"
     else:
         resume_from_checkpoint = None
     checkpoint_callback = ModelCheckpoint(
     monitor="avg_val_loss",
     dirpath="",
-    filename=args.fold_name + "_best_" + str(config["label"]),
+    filename=args.h5_file_name + "_best_" + str(config["label"]),
     save_top_k=1,
     mode="min",
 )
     trainer = pl.Trainer(
         gpus=int(args.num_gpus),
         callbacks=[
-            basic_callbacks(filename=args.fold_name + str(config["label"])),
+            basic_callbacks(filename=args.h5_file_name + str(config["label"])),
             checkpoint_callback
         ],
         **config["Trainer kwargs"],
@@ -62,21 +62,21 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--pickle", default=0)
     parser.add_argument("-l", "--load_checkpoint", default=0)
     parser.add_argument("-g", "--num_gpus", default=1)
-    parser.add_argument("-f", "--fold_name", default="null")
+    parser.add_argument("-f", "--h5_file_name", default="null")
     parser.add_argument("-o", "--overwrite", default=False)
     parser.add_argument("-d", "--debug", default=False)
     parser.add_argument("-u", "--unit_cell_limit",default = 100,type=int)
     args = parser.parse_args()
     try:
         print(args.config)
-        with open(str("config/" + args.config) + ".yaml", "r") as config_file:
+        with open(str(args.config), "r") as config_file:
             config = yaml.load(config_file, Loader=yaml.FullLoader)
     except Exception as e:
         print(e)
         raise RuntimeError(
             "Config not found or unprovided, a configuration JSON path is REQUIRED to run"
         )
-    config["h5_file"] = args.fold_name + ".hdf5"
+    config["h5_file"] = args.h5_file_name
     if bool(args.debug) == True:
         config["Max_Samples"] = 10000
     if int(args.pickle) == 1:

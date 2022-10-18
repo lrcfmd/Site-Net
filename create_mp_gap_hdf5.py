@@ -43,7 +43,7 @@ class OrthorhombicSupercellTransform(AbstractTransformation):
         R, Q = sp.linalg.rq(lattice_matrix)
         #Invert R to get the scale+shear that maps the current unit cell to the Orthorhombic cell
         R1 = np.linalg.inv(R)
-        #Compute the inverse of R1's diagonal and apply as a matrix multplication to remove scaling component from R1, as this is undesirable
+        #R1 is the inverse of R, we require the inverse of the diagonal component of R1 to remove the unwanted normalization included in the rq algorithm
         R1_Diagonal = np.zeros(R1.shape)
         np.fill_diagonal(R1_Diagonal,np.diagonal(R1))
         #S is the 'ideal' normalized shearing, it is not yet suitable due to its non-integer components
@@ -56,6 +56,7 @@ class OrthorhombicSupercellTransform(AbstractTransformation):
         Sheared_abc = [np.linalg.norm(Sheared_cell[0]),np.linalg.norm(Sheared_cell[1]),np.linalg.norm(Sheared_cell[2])]
         increments = (1,1,1)
         found_transform = False
+        #Iteratively increment the shortest lattice parameters until doing so brings the number of atoms above the limit
         while not found_transform:
             new_increments = list(increments) #Deep copy
             shortest = np.argmin([i*j for i,j in zip(increments,Sheared_abc)]) #Return the shortest lattice parameter of Q post scaling
@@ -175,6 +176,7 @@ if __name__ == "__main__":
     parser.add_argument('--cubic_supercell', default=False, action='store_true')
     parser.add_argument('--primitive', default=False, action='store_true')
     parser.add_argument("-s", "--supercell_size", default=100,type=int)
+    parser.add_argument("-c", "--cpu_cores",default = cpu_count()-1,type=int)
     args = parser.parse_args()  
     if args.cubic_supercell:
         h5_file_name = "matbench_mp_gap_cubic_" + str(args.supercell_size)
@@ -187,7 +189,7 @@ if __name__ == "__main__":
     else:
         raise(Exception("Need to specify either --primitive or --cubic_supercell on commandline, with -s argument controlling supercell size"))
     #pool = Pool(cpu_count()-1)
-    pool = Pool(cpu_count()//4)
+    pool = Pool(args.cpu_cores)
     task = MatbenchBenchmark().matbench_mp_gap
     task.load()
     fold_n = 1

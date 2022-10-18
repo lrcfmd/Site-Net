@@ -1,3 +1,4 @@
 no more adding the identity matrix to the embedding
 remove redundant columns from the 2d feature matricies
 dynamic batching allows the GPU to be fully utilized
+Use the pytorch scatter library to enable batching across the atomic dimensions
