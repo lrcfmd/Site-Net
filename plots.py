@@ -5,6 +5,7 @@ from tqdm import tqdm
 import matplotlib.colors as colors
 import matplotlib.ticker as ticker
 import matplotlib
+
 plt.rcParams["xtick.direction"] = "in"
 plt.rcParams["ytick.direction"] = "in"
 
@@ -157,11 +158,6 @@ chunk_size = 10e5
 df = pd.concat(tqdm(pd.read_csv("attention_logs.csv",chunksize=chunk_size)))
 df = df.loc[~(df.isin([0,1])).all(axis=1)]
 df = df.reset_index()
-# for x in ["x1","x2"]:
-#     for y in ["y11","y12","y13","y21","y22","y23"]:
-#         for log in [True,False]:
-#             for rcubed in [False,True]:
-#                 save_histogram(x,y,df.copy(),log=log,rcubed=rcubed)
 
 fig,ax = plt.subplots(2, 3, sharex=True, sharey=True,gridspec_kw={'wspace':0.1, 'hspace':0.1},figsize=(12,8))
 for block in range(1,3):

@@ -14,6 +14,7 @@ from torch.optim.lr_scheduler import *
 from torch import nn
 from torch_scatter import segment_csr
 from torch.utils.data import RandomSampler,Sampler
+from pymatgen.transformations.standard_transformations import *
 
 #Clamps negative predictions to zero without interfering with the gradients. "Transparent" ReLU
 class TReLU(torch.autograd.Function):
@@ -47,30 +48,16 @@ af_dict = {"identity":lambda x:x,"relu":nn.functional.relu,"softplus":nn.functio
 #Also performs necessary zero padding on the j axis and creates the batch masks
 def collate_fn(batch, inference=False):
     batch_dict = {}
-    # Unpack Crystal Features Dictionaries
+    #Necessary information to perform the batching
     primitive_lengths = [i["prim_size"] for i in batch]
     image_count = [i["images"] for i in batch]
     actual_length = [i["prim_size"]*i["images"] for i in batch]
-    #primitive_lengths = [i["prim_size"]*i["images"] for i in batch]
-    #image_count = [1 for i in batch]
-    #actual_length = [i["prim_size"]*i["images"] for i in batch]
-    #[list(range(0,j,k))]
-    def batch_permute(batch_full, key, dtype, process_func=lambda _: _):
+
+    #Turns the numpy arrays into torch tensors ready for the model
+    def initialize_tensors(batch_full, key, dtype, process_func=lambda _: _):
         batch = [i[key] for i in batch_full]
         batch = [process_func(i) for i in batch]
         batch = [torch.as_tensor(np.array(i), dtype=dtype) for i in batch]
-        return batch
-
-    def batch_permute_sparse(batch_full, key, dtype, process_func=lambda _: _):
-        batch = [i[key] for i in batch_full]
-        batch = [process_func(i) for i in batch]
-        batch = [torch.as_tensor(i, dtype=dtype) for i in batch]
-        return batch
-
-    def two_d_batch_permute(batch_full, key, dtype, process_func=lambda _: _):
-        batch = [i[key] for i in batch_full]
-        batch = [process_func(i) for i in batch]
-        batch = [torch.as_tensor(i, dtype=dtype) for i in batch]
         return batch
 
     # 2 dimensional stacking for the adjaceny matricies
@@ -96,10 +83,10 @@ def collate_fn(batch, inference=False):
             0
         )
         return stacked
-    Atomic_ID = batch_permute(batch, "Atomic_ID", torch.long)
-    site_features = batch_permute_sparse(batch, "Site_Feature_Tensor", torch.float)
-    interaction_features = two_d_batch_permute(batch, "Interaction_Feature_Tensor", torch.float)
-    Oxidation_State = batch_permute(batch, "Oxidation_State", torch.float)
+    Atomic_ID = initialize_tensors(batch, "Atomic_ID", torch.long)
+    site_features = initialize_tensors(batch, "Site_Feature_Tensor", torch.float)
+    interaction_features = initialize_tensors(batch, "Interaction_Feature_Tensor", torch.float)
+    Oxidation_State = initialize_tensors(batch, "Oxidation_State", torch.float)
     # Pack Crystal Features
     batching_mask_COO = []
     batching_mask_CSR = []
@@ -524,8 +511,6 @@ class SiteNet_DIM(pl.LightningModule):
         #self.log("avg_val_loss_local_KL",self.Local_Environment_KL_loss)
         #self.log("avg_val_loss_global_KL",self.Global_KL_loss)
 
-from pymatgen.transformations.standard_transformations import *
-
 class basic_callbacks(pl.Callback):
     def __init__(self,*pargs,filename = "current_model",**kwargs):
         super().__init__(*pargs,**kwargs)
@@ -667,14 +652,3 @@ class SiteNet_batch_sampler(Sampler):
                         yield batch
                     #break to let lightning know the epoch is over
                     break
-
-if __name__ == "__main__":
-    import json
-
-    config = json.load(open("config/test.json", "rb"))
-    model = Attention_Infomax(config)
-    train_loader = model.train_dataloader()
-    model.training_step(model.Dataset[0], 0)
-    for _ in train_loader:
-        pass
-
