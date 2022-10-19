@@ -209,10 +209,6 @@ class SiteNet(pl.LightningModule):
                     return_std=False,
                 )
                 Encoding = af_dict[self.config["last_af_func"]](self.decoder(Encoding))
-                if self.config["regularization strategy"] == "l1_sparse":
-                    Encoding = F.relu(Encoding)
-                if self.config["regularization strategy"] == "kl_sparse":
-                    Encoding = F.relu(Encoding)
                 Encoding_list.append(Encoding)
                 targets_list.append(batch_dictionary["target"])
         Encoding = torch.cat(Encoding_list, dim=0)
