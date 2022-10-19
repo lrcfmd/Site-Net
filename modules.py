@@ -134,13 +134,13 @@ class SiteNetAttentionBlock(nn.Module):
         #K softmax value, -1 and unused in the paper
         self.k_softmax = k_softmax
         #Hidden layers for calculating the attention weights (g^W)
-        self.bond_to_multihead = pairwise_seq_af_norm([2*site_dim*heads + interaction_dim*heads,*attention_hidden_layers],af_dict[af],pairwise_norm_dict[set_norm])
+        self.ije_to_multihead = pairwise_seq_af_norm([2*site_dim*heads + interaction_dim*heads,*attention_hidden_layers],af_dict[af],pairwise_norm_dict[set_norm])
         #Final layer to generate the attention weights, no activation function or normalization is used
         self.pre_softmax_linear = nn.Linear(attention_hidden_layers[-1],heads)
         #Maps the bond feautres to the new interaction features (g^I)
-        self.bond_to_Interaction_Features = pairwise_seq_af_norm([(site_dim * 2 + interaction_dim) * heads, interaction_dim * heads],af_dict[af],pairwise_norm_dict[set_norm])
+        self.ije_to_Interaction_Features = pairwise_seq_af_norm([(site_dim * 2 + interaction_dim) * heads, interaction_dim * heads],af_dict[af],pairwise_norm_dict[set_norm])
         #Maps the bond features to the attention features (g^A)
-        self.bond_to_attention_features = pairwise_seq_af_norm([(site_dim*2 + interaction_dim) * heads, site_dim],af_dict[af],pairwise_norm_dict[set_norm])
+        self.ije_to_attention_features = pairwise_seq_af_norm([(site_dim*2 + interaction_dim) * heads, site_dim],af_dict[af],pairwise_norm_dict[set_norm])
         #Linear layer on new site features prior to the next attention block / pooling
         self.global_linear = set_seq_af_norm([site_dim * heads, site_dim * heads],af_dict[af],set_norm_dict[set_norm])
     @staticmethod
@@ -153,7 +153,7 @@ class SiteNetAttentionBlock(nn.Module):
         x_j = x[Batch_Mask["attention_j"],:]
         x_ije = torch.cat([x_i, x_j, Interaction_Features], axis=2)
         #Construct the Attention Weights
-        multi_headed_attention_weights = self.pre_softmax_linear(self.bond_to_multihead(x_ije)) #g^W
+        multi_headed_attention_weights = self.pre_softmax_linear(self.ije_to_multihead(x_ije)) #g^W
         multi_headed_attention_weights[Attention_Mask] = float("-infinity") #Necessary to avoid interfering with the softmax
         if cutoff_mask is not None:
             multi_headed_attention_weights[cutoff_mask] = float("-infinity")
@@ -163,13 +163,13 @@ class SiteNetAttentionBlock(nn.Module):
         x = torch.einsum(
             "ijk,ije->iek",
             multi_headed_attention_weights,
-            self.bond_to_attention_features(x_ije) #g^F
+            self.ije_to_attention_features(x_ije) #g^F
         )
         #Compute the new site features and append to the global summary
         x= self.global_linear(torch.reshape(x,[x.shape[0],x.shape[1] * x.shape[2],],)) #g^S
         m = torch.cat([m, x], dim=1) if m != None else x #Keep running total of the site features
         #Compute the new interaction features
-        New_interaction_Features = self.bond_to_Interaction_Features(x_ije) #g^I
+        New_interaction_Features = self.ije_to_Interaction_Features(x_ije) #g^I
         return x, New_interaction_Features, m
 
 class SiteNetEncoder(nn.Module):
@@ -471,9 +471,9 @@ class SiteNetDIMAttentionBlock(nn.Module):
         self.interaction_featurization_norm = pairwise_norm_dict[set_norm](
             attention_dim_interaction * attention_heads
         )
-        self.bond_to_multihead = pairwise_seq_af_norm([2*self.site_dim + self.interaction_dim,*attention_hidden_layers],af_dict[af],pairwise_norm_dict[set_norm])
+        self.ije_to_multihead = pairwise_seq_af_norm([2*self.site_dim + self.interaction_dim,*attention_hidden_layers],af_dict[af],pairwise_norm_dict[set_norm])
         self.pre_softmax_linear = nn.Linear(attention_hidden_layers[-1],attention_heads)
-        self.bond_to_attention_features = pairwise_seq_af_norm([self.site_dim*2 + self.interaction_dim, self.glob_dim],af_dict[af],pairwise_norm_dict[set_norm])
+        self.ije_to_attention_features = pairwise_seq_af_norm([self.site_dim*2 + self.interaction_dim, self.glob_dim],af_dict[af],pairwise_norm_dict[set_norm])
         self.global_linear = set_seq_af_norm([self.site_dim, self.site_dim],af_dict["none"],set_norm_dict[set_norm])
         self.global_linear_std = set_seq_af_norm([self.site_dim, self.site_dim],af_dict["none"],set_norm_dict["none"])
         self.classifier_hidden_layers = set_seq_af_norm([self.site_dim + self.full_elem_token_size + interaction_feature_size, *classifier_hidden_layers],af_dict[af],pairwise_norm_dict[set_norm])
@@ -504,7 +504,7 @@ class SiteNetDIMAttentionBlock(nn.Module):
         x_j = x[Batch_Mask["attention_j"],:]
         x_ije = torch.cat([x_i, x_j, Interaction_Features], axis=2)
         #Construct the Attention Weights
-        multi_headed_attention_weights = self.pre_softmax_linear(self.bond_to_multihead(x_ije)) #g^W
+        multi_headed_attention_weights = self.pre_softmax_linear(self.ije_to_multihead(x_ije)) #g^W
         multi_headed_attention_weights[Attention_Mask] = float("-infinity") #Necessary to avoid interfering with the softmax
         #Perform softmax on j
         multi_headed_attention_weights = k_softmax(multi_headed_attention_weights, 1,self.k_softmax) #K_softmax is unused in the paper, ability to disable message passing beyond the highest N coefficients, dynamic graph
@@ -512,7 +512,7 @@ class SiteNetDIMAttentionBlock(nn.Module):
         x = torch.einsum(
             "ijk,ije->iek",
             multi_headed_attention_weights,
-            self.bond_to_attention_features(x_ije) #g^F
+            self.ije_to_attention_features(x_ije) #g^F
         )
         #Combine the heads together
         x = torch.reshape(x,[x.shape[0],x.shape[1] * x.shape[2],],)
