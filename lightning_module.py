@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader, random_split
 from multiprocessing import cpu_count
 from torch.nn.functional import pad
 from modules import (
-    SiteNetEncoder,SiteNetDIMAttentionBlock,SiteNetDIMGlobal
+    SiteNetEncoder
 )
 import torch.nn.functional as F
 import numpy as np

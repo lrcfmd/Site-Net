@@ -69,11 +69,10 @@ if __name__ == "__main__":
     config["h5_file"] = args.h5_file_name
     if bool(args.debug) == True:
         config["Max_Samples"] = 1000
-    else:
-        Dataset = DIM_h5_Data_Module(
-            config,
-            max_len=args.unit_cell_limit,
-            ignore_errors=False,
-            overwrite=bool(args.overwrite),
-        )
+    Dataset = DIM_h5_Data_Module(
+        config,
+        max_len=args.unit_cell_limit,
+        ignore_errors=False,
+        overwrite=bool(args.overwrite),
+    )
     train_model(config, Dataset)
