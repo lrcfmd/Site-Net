@@ -21,3 +21,5 @@ The attention coefficient plots and the performance plots can be obtained after 
 python plots.py
 
 the outputs will be generated in the histograms folder
+
+The lightning module is in lightning_module.py, individual torch modules are in modules.py, h5_handler.py contains the database management code, none of these files are to be run directly.
