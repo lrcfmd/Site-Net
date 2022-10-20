@@ -42,7 +42,6 @@ from random import shuffle, seed
 seed(42)
 import matminer.featurizers.structure as struc_feat
 site_feauturizers_dict = matminer.featurizers.site.__dict__
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 import yaml
 from pytorch_lightning.callbacks import *
 import argparse
@@ -291,7 +290,7 @@ def get_site_feature_array(pre, structure,prim_size,images):
         *pre["Featurizer_PArgs"], **pre["Featurizer_KArgs"]
     )
     feature_array = np.array(
-        [featurizer.featurize(structure, i) for i in range(0,len(structure),images)]
+        [featurizer.featurize(structure, i) for i in range(0,len(structure),images)] #Skip over identical sites with linspacing equal to the number of images
     )
     return feature_array
 
@@ -300,6 +299,7 @@ def get_bonds_feature_array(pre, structure,prim_size,images):
     featurizer = bond_featurizer(
         Bond_Featurizer_Functions[pre["name"]], **pre["kwargs"]
     )
+    #Generating a supercell puts all identical sites next to eachother, linear spacing equal to the number of images obtains the unique sites
     feature_array = np.array(featurizer.featurize(structure))[0:len(structure):images]
     return feature_array
 
@@ -431,6 +431,7 @@ def featurize_h5_cache_Oxidation(structure,images):
     try:
         oxidation_list = []
         for idx,i in enumerate(structure):
+            #Skip over identical sites using linear spacing equal to the number of images
             if idx in list(range(0,len(structure),images)):
                 try:
                     oxidation_list.append(np.array([i.specie.oxi_state]))
@@ -448,6 +449,7 @@ def featurize_h5_cache_Oxidation(structure,images):
 
 def featurize_h5_cache_ElemToken(structure,images):
     try:
+        #Generating a supercell puts all identical sites next to eachother, linear spacing equal to the number of images obtains the unique sites
         token_list = np.array([int(i.specie.Z) for i in structure])[0:len(structure):images]
         mask_high = token_list >= 100
         mask_low = token_list <= 0

@@ -1,11 +1,9 @@
-from audioop import mul
 import pytorch_lightning as pl
 import sys
 from matminer.featurizers.site import *
 import matminer
 
 site_feauturizers_dict = matminer.featurizers.site.__dict__
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from lightning_module import (
     basic_callbacks,
     DIM_h5_Data_Module,
@@ -13,16 +11,14 @@ from lightning_module import (
 )
 from lightning_module import basic_callbacks
 import yaml
-from h5_handler import torch_h5_cached_loader
 from pytorch_lightning.callbacks import *
 import argparse
-from compress_pickle import dump, load
 import os
 import torch
 import pandas as pd
 import numpy as np
 import sys, os
-from modules import SiteNetAttentionBlock,SiteNetEncoder,k_softmax,set_seq_af_norm,set_norm_dict,af_dict
+from modules import SiteNetAttentionBlock,SiteNetEncoder,k_softmax
 from tqdm import tqdm
 from lightning_module import collate_fn
 from lightning_module import af_dict as lightning_af_dict
@@ -52,9 +48,9 @@ class TReLU(torch.autograd.Function):
 
 class SiteNetAttentionBlockwreturns(SiteNetAttentionBlock):
     def __init__(
-        self, site_dim, interaction_dim, glob_dim,ije_depth = 2,ije_width = 64, heads=4, af="relu", set_norm="batch",tdot=False,k_softmax=-1,attention_hidden_layers=[256,256]
+        self, site_dim, interaction_dim, heads=4, af="relu", set_norm="batch",tdot=False,k_softmax=-1,attention_hidden_layers=[256,256]
     ):
-        super().__init__(site_dim, interaction_dim, glob_dim,ije_depth,ije_width, heads, af, set_norm,tdot,k_softmax,attention_hidden_layers)
+        super().__init__(site_dim, interaction_dim, heads, af, set_norm,tdot,k_softmax,attention_hidden_layers)
     def forward(self, logger,x, interaction_Features, Attention_Mask,Batch_Mask,cutoff_mask=None, m=None):
         #Construct the Bond Features x_ije
         x_i = x[Batch_Mask["attention_i"],:]
@@ -87,7 +83,6 @@ class encoder_with_interaction_returns(SiteNetEncoder):
         attention_blocks=4,
         attention_heads=4,
         site_dim_per_head=64,
-        global_embedding_dim_per_block_per_head=16,
         pre_pool_layers=[256, 256],
         post_pool_layers=[256, 256],
         activation_function="relu",
@@ -103,15 +98,14 @@ class encoder_with_interaction_returns(SiteNetEncoder):
         **kwargs,
     ):
         super().__init__(embedding_size,site_feature_size,
-        attention_blocks,attention_heads,site_dim_per_head,global_embedding_dim_per_block_per_head,
-        pre_pool_layers,post_pool_layers,activation_function,sym_func,set_norm,lin_norm,interaction_feature_size,
+        attention_blocks,attention_heads,site_dim_per_head, pre_pool_layers,post_pool_layers,
+        activation_function,sym_func,set_norm,lin_norm,interaction_feature_size,
         attention_dim_interaction,tdot,attention_hidden_layers,k_softmax,**kwargs)
         self.distance_cutoff=distance_cutoff
         self.Attention_Blocks = nn.ModuleList(
             SiteNetAttentionBlockwreturns(
                 site_dim_per_head,
                 attention_dim_interaction,
-                global_embedding_dim_per_block_per_head,
                 af=activation_function,
                 heads=attention_heads,
                 set_norm=set_norm,
@@ -206,10 +200,6 @@ class lightning_module_with_interaction_returns(SiteNet):
                 )
                 logger.append(batch_dictionary["Structure"])
                 Encoding = lightning_af_dict[self.config["last_af_func"]](self.decoder(Encoding))
-                if self.config["regularization strategy"] == "l1_sparse":
-                    Encoding = F.relu(Encoding)
-                if self.config["regularization strategy"] == "kl_sparse":
-                    Encoding = F.relu(Encoding)
                 Encoding_list.append(Encoding)
                 targets_list.append(batch_dictionary["target"])
                 Logger_list.append(logger)
@@ -288,36 +278,29 @@ if __name__ == "__main__":
     torch.set_num_threads(32)
     parser = argparse.ArgumentParser(description="ml options")
     parser.add_argument("-c", "--config", default="test")
-    parser.add_argument("-p", "--pickle", default=0)
-    parser.add_argument("-l", "--load_checkpoint", default=0)
-    parser.add_argument("-g", "--num_gpus", default=1)
     parser.add_argument("-d", "--dataset", default="null")
     parser.add_argument("-n", "--limit", default=None,type=int)
     parser.add_argument("-m", "--model_name", default=None,type=str)
     args = parser.parse_args()
     try:
         print(args.config)
-        with open(str("config/" + args.config) + ".yaml", "r") as config_file:
+        with open(str(args.config), "r") as config_file:
             config = yaml.load(config_file, Loader=yaml.FullLoader)
     except Exception as e:
         print(e)
         raise RuntimeError(
             "Config not found or unprovided, a configuration JSON path is REQUIRED to run"
         )
-    models = [i for i in os.listdir("Data/CV_hdf5") if args.dataset in i  and ".ckpt" in i]
     results_list = []
     for fold in range(0,1):
         model_name = args.model_name
-        print(model_name)
         dataset_name = args.dataset + "_test_" + str(fold+1) + ".hdf5"
-        config["h5_file"] = "Data/CV_hdf5/" + dataset_name
+        config["h5_file"] = dataset_name
         config["Max_Samples"] = args.limit
         config["dynamic_batch"] = False
         config["Batch_Size"] = 128
-        print(config["h5_file"])
-        print(args.limit)
         model = lightning_module_with_interaction_returns(config)
-        model.load_state_dict(torch.load("Data/CV_hdf5/" + model_name,map_location=torch.device("cpu"))["state_dict"])
+        model.load_state_dict(torch.load(model_name,map_location=torch.device("cpu"))["state_dict"])
         #for name, param in model.named_parameters():
             #print(name)
             #print(param)
@@ -336,7 +319,6 @@ if __name__ == "__main__":
         results_df = pd.DataFrame([predictions,truth,MAE]).transpose()
         results_df.to_csv("parity plot data test " + str(fold + 1) + ".csv")
         results_list.append(results_df)
-        torch.save(model.state_dict(),"Data/CV_hdf5/e_gap_train_1_test.sdic")
         MAE_clamped = np.abs(truth-np.clip(predictions,0,None))     
         len_1 = len(results[2])
         len_2 = len(results[2][0])

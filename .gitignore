@@ -8,5 +8,5 @@ lightning_logs/*
 *.ckpt
 *.tar.gz
 *.ipynb
-*.txt
 *.local.yaml
+*.local
