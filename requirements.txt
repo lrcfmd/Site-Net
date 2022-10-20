@@ -1,0 +1,8 @@
+pytorch (With cuda)
+pytorch lightning
+torch scatter
+matminer
+matbench
+pymatgen
+h5py
+dscribe
