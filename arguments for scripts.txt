@@ -1,0 +1,9 @@
+create_mp_gap_hdf5.py
+
+Provide either --primitive or --cubic_supercell
+
+provide the size of the supercell (if applicable) with -s N where N is the maximum number of atoms
+
+train.py
+
+-c --config  
