@@ -16,9 +16,9 @@ import pickle as pk
 from compress_pickle import dumps, loads
 import traceback
 import multiprocessing
-import psutil
 # istarmap.py for Python 3.8+
 import multiprocessing.pool as mpp
+from multiprocessing import cpu_count
 def istarmap(self, func, iterable, chunksize=1):
     """starmap-version of imap"""
     self._check_running()
@@ -51,8 +51,6 @@ import matminer.featurizers.structure as structure_feat
 rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
 resource.setrlimit(resource.RLIMIT_NOFILE, (4096, rlimit[1]))
 set_start_method("fork")
-cpu_count = lambda: psutil.cpu_count(logical=True)
-hyper_threads = psutil.cpu_count(logical=True) // psutil.cpu_count(logical=False)
 # torch.multiprocessing.set_sharing_strategy("file_system")
 
 site_feauturizers_dict = matminer.featurizers.site.__dict__
@@ -635,7 +633,7 @@ class torch_h5_cached_loader(Dataset):
         overwrite=False,
         ignore_errors=False,
         limit=None,
-        chunk_size=cpu_count() * 64 // hyper_threads,
+        chunk_size=cpu_count()*32,
         max_len=None,
     ):
         self.chunk_size = chunk_size

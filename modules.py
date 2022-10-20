@@ -4,7 +4,6 @@ import torch.nn.functional as F
 from itertools import tee
 from torch.nn import LayerNorm,InstanceNorm1d
 import numpy as np
-import dill
 from torch_scatter import scatter_std,scatter_mean,segment_coo,segment_csr
 from torch_scatter.composite import scatter_std
 

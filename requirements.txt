@@ -6,3 +6,4 @@ matbench
 pymatgen
 h5py
 dscribe
+compress-pickle
