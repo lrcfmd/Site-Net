@@ -106,53 +106,56 @@ plt.gca().set_xlim(left=0)
 plt.savefig("histograms/MAE.png",bbox_inches='tight')
 plt.clf()
 
-fig,ax = plt.subplots()
-ax.tick_params(length=16)
-ax.tick_params(which="minor",length=6)
 
-import glob
-all_files = glob.glob("Loss_Epoch/*.csv")
-li = []
+#Loss vs epoch requires importing csvs from tensorboard and is disabled until requested, place the csvs for the run from tensorboard into a folder called "Loss_Epoch" to use
 
-for filename in all_files:
-    df = pd.read_csv(filename)
-    li.append(df)
+# fig,ax = plt.subplots()
+# ax.tick_params(length=16)
+# ax.tick_params(which="minor",length=6)
 
-Loss_Epoch = pd.concat(li, axis=0, ignore_index=True)
-Loss_Epoch = Loss_Epoch.sort_values("Step")
+# import glob
+# all_files = glob.glob("Loss_Epoch/*.csv")
+# li = []
 
-import math
-def set_aspect_ratio_log(plot, aspect_ratio):
-        x_min, x_max = plot.get_xlim()
-        y_min, y_max = plot.get_ylim()
-        return plot.set_aspect(aspect_ratio * ((math.log10(x_max / x_min)) / (math.log10(y_max / y_min))))
+# for filename in all_files:
+#     df = pd.read_csv(filename)
+#     li.append(df)
 
-ax.set_yscale("log")
-ax.set_xscale("log")
-ax.set_xlabel("number of epochs")
-ax.set_ylabel("validation MAE on band gap (eV)")
-ax.tick_params(length=15)
-ax.tick_params(which="minor",length=6)
-ax.yaxis.set_minor_formatter(ticker.ScalarFormatter())
-Loss_Epoch["Step"] = Loss_Epoch["Step"]/5259
-ax.scatter(Loss_Epoch["Step"],Loss_Epoch["Value"],s=1)
-ax.set_yticks([i/10 for i in range(2,11)],[str(i/10) for i in range(2,11)],minor=False)
-ax.set_yticks([i/100 for i in range(20,110,2)],[None for i in range(20,110,2)],minor=True)
-set_aspect_ratio_log(ax,1)
-ax.set_ylim([0.2,1])
-plt.savefig("histograms/Loss_Epoch_log_log.png",bbox_inches='tight',dpi=600)
-plt.clf()
+# Loss_Epoch = pd.concat(li, axis=0, ignore_index=True)
+# Loss_Epoch = Loss_Epoch.sort_values("Step")
 
-fig,ax = plt.subplots()  
-ax.set_xlabel("Mini-Batches")
-ax.set_ylabel("validation MAE on band gap (ev)")
-ax.tick_params(length=15)
-ax.tick_params(which="minor",length=6)
-ax.yaxis.set_minor_formatter(ticker.ScalarFormatter())
-ax.scatter(Loss_Epoch["Step"],Loss_Epoch["Value"],s=1)
-ax.axis('square')
-plt.savefig("histograms/Loss_Epoch.png",bbox_inches='tight')
-plt.clf()
+# import math
+# def set_aspect_ratio_log(plot, aspect_ratio):
+#         x_min, x_max = plot.get_xlim()
+#         y_min, y_max = plot.get_ylim()
+#         return plot.set_aspect(aspect_ratio * ((math.log10(x_max / x_min)) / (math.log10(y_max / y_min))))
+
+# ax.set_yscale("log")
+# ax.set_xscale("log")
+# ax.set_xlabel("number of epochs")
+# ax.set_ylabel("validation MAE on band gap (eV)")
+# ax.tick_params(length=15)
+# ax.tick_params(which="minor",length=6)
+# ax.yaxis.set_minor_formatter(ticker.ScalarFormatter())
+# Loss_Epoch["Step"] = Loss_Epoch["Step"]/5259
+# ax.scatter(Loss_Epoch["Step"],Loss_Epoch["Value"],s=1)
+# ax.set_yticks([i/10 for i in range(2,11)],[str(i/10) for i in range(2,11)],minor=False)
+# ax.set_yticks([i/100 for i in range(20,110,2)],[None for i in range(20,110,2)],minor=True)
+# set_aspect_ratio_log(ax,1)
+# ax.set_ylim([0.2,1])
+# plt.savefig("histograms/Loss_Epoch_log_log.png",bbox_inches='tight',dpi=600)
+# plt.clf()
+
+# fig,ax = plt.subplots()  
+# ax.set_xlabel("Mini-Batches")
+# ax.set_ylabel("validation MAE on band gap (ev)")
+# ax.tick_params(length=15)
+# ax.tick_params(which="minor",length=6)
+# ax.yaxis.set_minor_formatter(ticker.ScalarFormatter())
+# ax.scatter(Loss_Epoch["Step"],Loss_Epoch["Value"],s=1)
+# ax.axis('square')
+# plt.savefig("histograms/Loss_Epoch.png",bbox_inches='tight')
+# plt.clf()
 
 chunk_size = 10e5
 df = pd.concat(tqdm(pd.read_csv("attention_logs.csv",chunksize=chunk_size)))
