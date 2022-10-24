@@ -1,3 +1,5 @@
+In addition to standard anaconda packages
+
 pytorch (With cuda)
 pytorch lightning
 torch scatter

@@ -246,10 +246,6 @@ class SiteNetEncoder(nn.Module):
                 nn.Linear(i, j)
                 for i, j in pairwise((pre_pool_layers[-1], *post_pool_layers))
             )
-            self.post_pool_layers_std = nn.ModuleList(
-                nn.Linear(i, j)
-                for i, j in pairwise((pre_pool_layers[-1], *post_pool_layers))
-            )
             self.post_pool_layers_norm = nn.ModuleList(
                 norm_dict[lin_norm](i) for i in post_pool_layers
             )
