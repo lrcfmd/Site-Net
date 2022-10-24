@@ -1,12 +1,12 @@
-Steps for benchmarking a 500 atom supercell model on the first fold of the band gap task
+Steps for benchmarking a 100 atom supercell model on the first fold of the band gap task
 
 This implementation of Site-Net uses the hdf5 format for storing datasets, to initialize the hdf5 file first run
 
-python create_mp_gap_hdf5.py --cubic_supercell -s 500
+python create_mp_gap_hdf5.py --cubic_supercell -s 100
 
 Once this has been generated, the model can be trained with
 
-python train.py -c config/PaperParams.yaml -f Data/Matbench/matbench_mp_gap_cubic_500_train_1.hdf5 -u 500
+python train.py -c config/PaperParams.yaml -f Data/Matbench/matbench_mp_gap_cubic_100_train_1.hdf5 -u 100
 
 featurization is performed "just in time" and results from featurizers are cached in the hdf5 file for later use, the first run of train.py will take a long time as it generates the features
 
@@ -14,7 +14,7 @@ Training can be tracked using tensorboard, the outputs are generated in the ligh
 
 Once the model has trained the test score can be obtained with
 
-python predict.py -c config/PaperParams.yaml -m matbench_mp_gap_cubic_100_train_1.hdf5_best_PaperParams.ckpt -d Data/CV_hdf5/matbench_mp_gap_cubic_500_COO
+python predict.py -c config/PaperParams.yaml -m matbench_mp_gap_cubic_100_train_1.hdf5_best_PaperParams.ckpt -d Data/Matbench/matbench_mp_gap_cubic_100
 
 The attention coefficient plots and the performance plots can be obtained after running predict.py by running
 
