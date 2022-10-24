@@ -29,7 +29,8 @@ def train_model(config, Dataset):
     mode="min",
 )
     trainer = pl.Trainer(
-        gpus=1,
+        accelerator="gpu",
+        devices=1,
         callbacks=[
             basic_callbacks(filename=args.h5_file_name + str(config["label"])),
             checkpoint_callback
