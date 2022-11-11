@@ -15,9 +15,24 @@ import pickle as pk
 from compress_pickle import dumps, loads
 import traceback
 import multiprocessing
-# istarmap.py for Python 3.8+
 import multiprocessing.pool as mpp
-from multiprocessing import cpu_count
+from multiprocessing import cpu_count,Process, Pool, set_start_method
+from random import shuffle, seed
+seed(42)
+import yaml
+from pytorch_lightning.callbacks import *
+import argparse
+import resource
+import matminer.featurizers.structure as structure_feat
+import random
+from torch import unsqueeze
+from pymatgen.analysis.local_env import *
+from tqdm import tqdm
+from torch.utils.data import Dataset, DataLoader
+
+site_feauturizers_dict = matminer.featurizers.site.__dict__
+
+
 def istarmap(self, func, iterable, chunksize=1):
     """starmap-version of imap"""
     self._check_running()
@@ -33,20 +48,9 @@ def istarmap(self, func, iterable, chunksize=1):
         )
     )
     return (item for chunk in result for item in chunk)
+
+
 mpp.Pool.istarmap = istarmap
-# import mpi4py
-from multiprocessing import Process, Pool, set_start_method
-import multiprocessing
-from random import shuffle, seed
-seed(42)
-import matminer.featurizers.structure as struc_feat
-site_feauturizers_dict = matminer.featurizers.site.__dict__
-import yaml
-from pytorch_lightning.callbacks import *
-import argparse
-import resource
-import matminer.featurizers.structure as structure_feat
-from tqdm import tqdm
 
 rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
 resource.setrlimit(resource.RLIMIT_NOFILE, (4096, rlimit[1]))
@@ -69,9 +73,9 @@ class bond_featurizer:
 
     def featurize(self, structure):
         base_matrix = self.base_function(structure)
-        base_matrix = base_matrix ** self.polynomial
+        base_matrix = base_matrix**self.polynomial
         if self.log:
-            base_matrix = np.log(base_matrix+1e-8)
+            base_matrix = np.log(base_matrix + 1e-8)
             base_matrix = np.clip(base_matrix, -self.max_clip, self.max_clip)
         return base_matrix
 
@@ -81,10 +85,12 @@ def distance_matrix(structure, func=lambda _: _):
     distance_matrix = func(structure.distance_matrix)
     return distance_matrix
 
+
 def sine_coulomb_matrix(structure):
     return structure_feat.SineCoulombMatrix(diag_elems=True, flatten=False).featurize(
         structure
     )[0]
+
 
 def coulomb_matrix(structure):
     return structure_feat.CoulombMatrix(diag_elems=True, flatten=False).featurize(
@@ -96,10 +102,10 @@ def coulomb_matrix(structure):
 Bond_Featurizer_Functions = {
     "distance_matrix": distance_matrix,
     "reciprocal_square_distance_matrix": lambda structure_l: distance_matrix(
-        structure_l, func=lambda _: _ ** -2
+        structure_l, func=lambda _: _**-2
     ),
     "coulomb_matrix": sine_coulomb_matrix,
-    "non_sine_coulomb_matrix": coulomb_matrix
+    "non_sine_coulomb_matrix": coulomb_matrix,
 }
 
 
@@ -176,12 +182,9 @@ def SOAP_Wrapper(*pargs, average="off", **kwargs):
 site_feauturizers_dict["SOAP_dscribe"] = SOAP_Wrapper
 site_feauturizers_dict["agnostic_SOAP_dscribe"] = agnostic_SOAP_Wrapper
 
-SCM = struc_feat.SineCoulombMatrix(
+SCM = structure_feat.SineCoulombMatrix(
     flatten=False,
 )
-import random
-from torch import unsqueeze
-from pymatgen.analysis.local_env import *
 
 # Helper classes & functions
 def list_to_dict(list_of_dicts, list_of_values, key):
@@ -251,7 +254,7 @@ def read_structures(h5_group, h5_file):
         target = h5_file[h5_group]["target"][()]
         prim_size = h5_file[h5_group]["prim_size"][()]
         images = h5_file[h5_group]["images"][()]
-        return structure, target,prim_size,images
+        return structure, target, prim_size, images
     except KeyboardInterrupt as e:
         raise e
     except Exception as e:
@@ -283,35 +286,43 @@ def populate_h5_state_dict(preprocessing_dict_list, file, h5_group, ignore_error
     return state_dict
 
 
-def get_site_feature_array(pre, structure,prim_size,images):
+def get_site_feature_array(pre, structure, prim_size, images):
     featurizer = site_feauturizers_dict[pre["name"]](
         *pre["Featurizer_PArgs"], **pre["Featurizer_KArgs"]
     )
     feature_array = np.array(
-        [featurizer.featurize(structure, i) for i in range(0,len(structure),images)] #Skip over identical sites with linspacing equal to the number of images
+        [
+            featurizer.featurize(structure, i) for i in range(0, len(structure), images)
+        ]  # Skip over identical sites with linspacing equal to the number of images
     )
     return feature_array
 
 
-def get_bonds_feature_array(pre, structure,prim_size,images):
+def get_bonds_feature_array(pre, structure, prim_size, images):
     featurizer = bond_featurizer(
         Bond_Featurizer_Functions[pre["name"]], **pre["kwargs"]
     )
-    #Generating a supercell puts all identical sites next to eachother, linear spacing equal to the number of images obtains the unique sites
-    feature_array = np.array(featurizer.featurize(structure))[0:len(structure):images]
+    # Generating a supercell puts all identical sites next to eachother, linear spacing equal to the number of images obtains the unique sites
+    feature_array = np.array(featurizer.featurize(structure))[
+        0 : len(structure) : images
+    ]
     return feature_array
 
 
-def generate_site(pre, structure, task_queue, h5_group, feature_arrays,prim_size,images):
-    feature_array = get_site_feature_array(pre, structure,prim_size,images)
+def generate_site(
+    pre, structure, task_queue, h5_group, feature_arrays, prim_size, images
+):
+    feature_array = get_site_feature_array(pre, structure, prim_size, images)
     task_queue.put(
         {"Name": str(pre), "Feature_Array": feature_array, "Group_Name": h5_group}
     )
     feature_arrays.append(feature_array)
 
 
-def generate_bonds(pre, structure, task_queue, h5_group, feature_arrays,prim_size,images):
-    feature_array = get_bonds_feature_array(pre, structure,prim_size,images)
+def generate_bonds(
+    pre, structure, task_queue, h5_group, feature_arrays, prim_size, images
+):
+    feature_array = get_bonds_feature_array(pre, structure, prim_size, images)
     task_queue.put(
         {"Name": str(pre), "Feature_Array": feature_array, "Group_Name": h5_group}
     )
@@ -357,7 +368,13 @@ def featurize_h5_cache_site_features(
                         elif loaded_value == "Generate":
                             try:
                                 generate_site(
-                                    pre, structure, task_queue, h5_group, feature_arrays,prim_size,images
+                                    pre,
+                                    structure,
+                                    task_queue,
+                                    h5_group,
+                                    feature_arrays,
+                                    prim_size,
+                                    images,
                                 )
                             except KeyboardInterrupt as e:
                                 raise e
@@ -394,7 +411,13 @@ def featurize_h5_cache_site_features(
                     elif loaded_value == "Generate":
                         try:
                             generate_bonds(
-                                pre, structure, task_queue, h5_group, feature_arrays,prim_size,images
+                                pre,
+                                structure,
+                                task_queue,
+                                h5_group,
+                                feature_arrays,
+                                prim_size,
+                                images,
                             )
                         except KeyboardInterrupt as e:
                             raise e
@@ -419,18 +442,25 @@ def featurize_h5_cache_site_features(
     except Exception as e:
         # traceback.print_exc()
         return None, None, structure, target
-    return site_feature_arrays, bond_feature_arrays, structure, target, prim_size, images
+    return (
+        site_feature_arrays,
+        bond_feature_arrays,
+        structure,
+        target,
+        prim_size,
+        images,
+    )
 
 
 # Token Loader
 
 
-def featurize_h5_cache_Oxidation(structure,images):
+def featurize_h5_cache_Oxidation(structure, images):
     try:
         oxidation_list = []
-        for idx,i in enumerate(structure):
-            #Skip over identical sites using linear spacing equal to the number of images
-            if idx in list(range(0,len(structure),images)):
+        for idx, i in enumerate(structure):
+            # Skip over identical sites using linear spacing equal to the number of images
+            if idx in list(range(0, len(structure), images)):
                 try:
                     oxidation_list.append(np.array([i.specie.oxi_state]))
                 except:
@@ -445,10 +475,12 @@ def featurize_h5_cache_Oxidation(structure,images):
         return None
 
 
-def featurize_h5_cache_ElemToken(structure,images):
+def featurize_h5_cache_ElemToken(structure, images):
     try:
-        #Generating a supercell puts all identical sites next to eachother, linear spacing equal to the number of images obtains the unique sites
-        token_list = np.array([int(i.specie.Z) for i in structure])[0:len(structure):images]
+        # Generating a supercell puts all identical sites next to eachother, linear spacing equal to the number of images obtains the unique sites
+        token_list = np.array([int(i.specie.Z) for i in structure])[
+            0 : len(structure) : images
+        ]
         mask_high = token_list >= 100
         mask_low = token_list <= 0
         mask = mask_high | mask_low
@@ -474,7 +506,9 @@ def result_get(
     max_len,
 ):
     with h5py.File(h5_file_name, "r") as h5_file:
-        result = [{"ICSD": i} for i in keys] #ID is no longer tied to the ICSD, this is a vestigal name for backwards compatability with old datasets
+        result = [
+            {"ICSD": i} for i in keys
+        ]  # ID is no longer tied to the ICSD, this is a vestigal name for backwards compatability with old datasets
         # Reading
         del h5_file_name
         structure_args = ((key, h5_file) for key in keys)
@@ -488,7 +522,7 @@ def result_get(
         # Compute features and add to write queue
         # Site Features
         processed_structure_list = [
-            [i, j, k, l,m, n]
+            [i, j, k, l, m, n]
             for i, j, k, l, m, n in [
                 featurize_h5_cache_site_features(
                     tasks,
@@ -521,8 +555,12 @@ def result_get(
         for local_dict, value in zip(result, bond_result):
             local_dict["Interaction_Feature_Tensor"] = value
         # Load in Elemental Tokens
-        Atomic_ID_List = [featurize_h5_cache_ElemToken(i,j) for i,j in zip(structures,images)]
-        Oxidation_List = [featurize_h5_cache_Oxidation(i,j) for i,j in zip(structures,images)]
+        Atomic_ID_List = [
+            featurize_h5_cache_ElemToken(i, j) for i, j in zip(structures, images)
+        ]
+        Oxidation_List = [
+            featurize_h5_cache_Oxidation(i, j) for i, j in zip(structures, images)
+        ]
         result = list_to_dict(result, Atomic_ID_List, "Atomic_ID")
         result = list_to_dict(result, Oxidation_List, "Oxidation_State")
         result = list_to_dict(result, structures, "structure")
@@ -537,7 +575,7 @@ def result_get(
             "Oxidation_State",
             "target",
             "prim_size",
-            "images"
+            "images",
         ]
         # print(site_result)
         result = [i for i in [clean_result(i, keys, max_len) for i in result]]
@@ -561,6 +599,7 @@ def JIT_h5_load(
     chunk_size=cpu_count() * 2,
     limit=None,
 ):
+    print(h5_file_name)
     key_data = h5py.File(h5_file_name, "r")
     keys = list(key_data.keys())
     shuffle(keys)
@@ -615,9 +654,6 @@ def JIT_h5_load(
     return results
 
 
-from torch.utils.data import Dataset, DataLoader
-
-
 class torch_h5_cached_loader(Dataset):
     @staticmethod
     def rand_false(idx, it_length):
@@ -633,7 +669,7 @@ class torch_h5_cached_loader(Dataset):
         overwrite=False,
         ignore_errors=False,
         limit=None,
-        chunk_size=cpu_count()*32,
+        chunk_size=cpu_count() * 32,
         max_len=None,
     ):
         self.chunk_size = chunk_size
@@ -650,7 +686,7 @@ class torch_h5_cached_loader(Dataset):
         )
 
     def __getitem__(self, idx):
-        if isinstance(idx,slice):
+        if isinstance(idx, slice):
             return [self[i] for i in list(range(idx.start, idx.stop))]
         Requested_Structure = loads(self.result[idx], comp_alg)
         False_Structure = loads(

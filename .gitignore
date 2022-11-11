@@ -10,3 +10,4 @@ lightning_logs/*/*
 *.ipynb
 *.local.yaml
 *.local
+.vscode*
