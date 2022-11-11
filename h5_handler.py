@@ -4,7 +4,6 @@
 # WARNING: h5 files are corrupted if unexpectedly closed during a write operation
 
 from torch.utils.data import Dataset
-from tqdm import tqdm
 import h5py
 import numpy as np
 import matminer
@@ -47,6 +46,7 @@ from pytorch_lightning.callbacks import *
 import argparse
 import resource
 import matminer.featurizers.structure as structure_feat
+from tqdm import tqdm
 
 rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
 resource.setrlimit(resource.RLIMIT_NOFILE, (4096, rlimit[1]))
