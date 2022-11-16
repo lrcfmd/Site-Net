@@ -55,7 +55,7 @@ def save_scatter(x,y,df):
     plt.scatter(df[x],df[y])
     fig.savefig("histograms/scatter_"+x+"_"+y+".png",bbox_inches='tight')
 
-Parity = pd.DataFrame(pd.read_csv("parity plot data test 1.csv",index_col=0).to_numpy(),columns=["Pred","True","MAE"])
+Parity = pd.DataFrame(pd.read_csv("parity plot data.csv",index_col=0).to_numpy(),columns=["Pred","True","MAE"])
 fig,ax = plt.subplots()
 ax.tick_params(length=15)
 ax.tick_params(which="minor",length=6)

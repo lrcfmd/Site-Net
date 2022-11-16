@@ -276,8 +276,8 @@ import pickle as pk
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ml options")
-    parser.add_argument("-c", "--config", default="test")
-    parser.add_argument("-d", "--dataset", default="null")
+    parser.add_argument("-c", "--config", default=None)
+    parser.add_argument("-f", "--h5_file_name", default=None)
     parser.add_argument("-n", "--limit", default=None,type=int)
     parser.add_argument("-m", "--model_name", default=None,type=str)
     parser.add_argument("-w", "--number_of_worker_processes", default=1,type=int)
@@ -293,44 +293,43 @@ if __name__ == "__main__":
             "Config not found or unprovided, a configuration JSON path is REQUIRED to run"
         )
     results_list = []
-    for fold in range(0,1):
-        model_name = args.model_name
-        dataset_name = args.dataset + "_test_" + str(fold+1) + ".hdf5"
-        config["h5_file"] = dataset_name
-        config["Max_Samples"] = args.limit
-        config["dynamic_batch"] = False
-        config["Batch_Size"] = 128
-        model = lightning_module_with_interaction_returns(config)
-        model.load_state_dict(torch.load(model_name,map_location=torch.device("cpu"))["state_dict"], strict=False)
-        Dataset = DIM_h5_Data_Module(
-            config,
-            max_len=None,
-            ignore_errors=True,
-            overwrite=False,
-            cpus=args.number_of_worker_processes,
-            chunk_size=32
-        )  
-        results = model.forward(Dataset.Dataset,return_truth=True,batch_size=128)
+    model_name = args.model_name
+    dataset_name = args.h5_file_name
+    config["h5_file"] = dataset_name
+    config["Max_Samples"] = args.limit
+    config["dynamic_batch"] = False
+    config["Batch_Size"] = 128
+    model = lightning_module_with_interaction_returns(config)
+    model.load_state_dict(torch.load(model_name,map_location=torch.device("cpu"))["state_dict"], strict=False)
+    Dataset = DIM_h5_Data_Module(
+        config,
+        max_len=None,
+        ignore_errors=True,
+        overwrite=False,
+        cpus=args.number_of_worker_processes,
+        chunk_size=32
+    )  
+    results = model.forward(Dataset.Dataset,return_truth=True,batch_size=128)
 
-        predictions = results[0].numpy().flatten()
-        truth = results[1].numpy().flatten()
-        MAE = np.abs(truth-predictions)
-        print(MAE.mean())
-        results_df = pd.DataFrame([predictions,truth,MAE]).transpose()
-        results_df.to_csv("parity plot data test " + str(fold + 1) + ".csv")
-        results_list.append(results_df)
-        MAE_clamped = np.abs(truth-np.clip(predictions,0,None))     
-        len_1 = len(results[2])
-        len_2 = len(results[2][0])
-        attention_logs = [[results[2][j][i] for j in range(len_1)] for i in range(len_2-1)]
-        attention_logs = [[j.flatten(end_dim=1) for j in i] for i in attention_logs]
-        attention_logs = [torch.cat(i,dim=0) for i in attention_logs]
-        attention_logs = torch.cat(attention_logs,dim=1)
-        t_np = attention_logs.numpy() #convert to Numpy array
-        df = pd.DataFrame(t_np,columns=["x1","x2","y11","y12","y13","y21","y22","y23"]) #convert to a dataframe
-        df.to_csv("attention_logs.csv",index=False) #save to file
+    predictions = results[0].numpy().flatten()
+    truth = results[1].numpy().flatten()
+    MAE = np.abs(truth-predictions)
+    print(MAE.mean())
+    results_df = pd.DataFrame([predictions,truth,MAE]).transpose()
+    results_df.to_csv("parity plot data.csv")
+    results_list.append(results_df)
+    MAE_clamped = np.abs(truth-np.clip(predictions,0,None))     
+    len_1 = len(results[2])
+    len_2 = len(results[2][0])
+    attention_logs = [[results[2][j][i] for j in range(len_1)] for i in range(len_2-1)]
+    attention_logs = [[j.flatten(end_dim=1) for j in i] for i in attention_logs]
+    attention_logs = [torch.cat(i,dim=0) for i in attention_logs]
+    attention_logs = torch.cat(attention_logs,dim=1)
+    t_np = attention_logs.numpy() #convert to Numpy array
+    df = pd.DataFrame(t_np,columns=["x1","x2","y11","y12","y13","y21","y22","y23"]) #convert to a dataframe
+    df.to_csv("attention_logs.csv",index=False) #save to file
 
-    
-    
-    
+
+
+
     

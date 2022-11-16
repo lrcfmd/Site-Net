@@ -52,9 +52,9 @@ def train_model(config, Dataset):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ml options")
-    parser.add_argument("-c", "--config", default="test")
+    parser.add_argument("-c", "--config", default=None)
     parser.add_argument("-l", "--load_checkpoint", default=0)
-    parser.add_argument("-f", "--h5_file_name", default="null")
+    parser.add_argument("-f", "--h5_file_name", default=None)
     parser.add_argument("-o", "--overwrite", default=False)
     parser.add_argument("-d", "--debug", default=False)
     parser.add_argument("-u", "--unit_cell_limit",default = 100,type=int)
