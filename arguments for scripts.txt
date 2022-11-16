@@ -26,6 +26,3 @@ provide the size of the supercell (if applicable) with -s N where N is the maxim
 -n --limit allows a smaller subset of the data to be used for the inference (default None)
 -m --model_name allows the checkpoint path to be specified (default None)
 -w --number_of_worker_processes allows the number of cpu threads to be specified (default 1)
-
-
-

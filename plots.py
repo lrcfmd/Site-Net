@@ -169,11 +169,8 @@ for block in range(1,3):
         x = "x1"
         log = True
         y = "y" + str(block) + str(head)
-        print(y)
         hist_df = df[df[x] != 0]
         x_sorted = list(hist_df[x].sort_values())
-        print(x_bins)
-        print(len(x_sorted))
         x_bins_i = [int(i) for i in np.linspace(0,len(x_sorted)-1,x_bins)]
         x_bins = np.array([x_sorted[i] for i in x_bins_i])
         hist_unnormed,x_edge,y_edge = np.histogram2d(hist_df[x],hist_df[y],bins=[x_bins[40:],np.logspace(np.log10(10e-7),np.log10(1.0), 500)])

@@ -284,13 +284,16 @@ if __name__ == "__main__":
     args = parser.parse_args()
     torch.set_num_threads(args.number_of_worker_processes)
     try:
-        print("config is " + args.config)
+        print("config file is " + args.config)
         with open(str(args.config), "r") as config_file:
             config = yaml.load(config_file, Loader=yaml.FullLoader)
     except Exception as e:
-        print(e)
         raise RuntimeError(
-            "Config not found or unprovided, a configuration JSON path is REQUIRED to run"
+            "Config not found or unprovided, a path to a configuration yaml must be provided with -c"
+        )
+    if args.h5_file_name == None:
+        raise RuntimeError(
+            "h5 file path is None, h5 file path must be provided through -f"
         )
     results_list = []
     model_name = args.model_name

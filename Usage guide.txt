@@ -10,7 +10,7 @@ Once this has been generated, the model can be trained with
 
 python train.py -c config/PaperParams.yaml -f Data/Matbench/matbench_mp_gap_cubic_100_train_1.hdf5 -u 100 -w [number of cpu threads available]
 
-featurization is performed "just in time" and results from featurizers are cached in the hdf5 file for later use, the first run of train.py will take a long time as it generates the features
+featurization is performed "just in time" and results from featurizers are cached in the hdf5 file for later use, the first loading in of data by train.py will take a long time as it generates the features
 
 Training can be tracked using tensorboard, the outputs are generated in the lightning_logs folder, which is where tensorboard should be pointed to
 

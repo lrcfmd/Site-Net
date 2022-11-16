@@ -163,10 +163,10 @@ class SiteNetAttentionBlock(nn.Module):
             multi_headed_attention_weights,
             self.ije_to_attention_features(x_ije) #g^F
         )
-        #Compute the new site features and append to the global summary
+        #Compute the new site features with g^S and append to the global summary
         x= self.global_linear(torch.reshape(x,[x.shape[0],x.shape[1] * x.shape[2],],)) #g^S
         m = torch.cat([m, x], dim=1) if m != None else x #Keep running total of the site features
-        #Compute the new interaction features
+        #Compute the new interaction features with g^I
         New_interaction_Features = self.ije_to_Interaction_Features(x_ije) #g^I
         return x, New_interaction_Features, m
 

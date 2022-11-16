@@ -66,9 +66,12 @@ if __name__ == "__main__":
         with open(str(args.config), "r") as config_file:
             config = yaml.load(config_file, Loader=yaml.FullLoader)
     except Exception as e:
-        print(e)
         raise RuntimeError(
-            "Config not found or unprovided, a configuration JSON path is REQUIRED to run"
+            "Config not found or unprovided, a path to a configuration yaml must be provided with -c"
+        )
+    if args.h5_file_name == None:
+        raise RuntimeError(
+            "h5 file path is None, h5 file path must be provided through -f"
         )
     config["h5_file"] = args.h5_file_name
     if bool(args.debug) == True:
