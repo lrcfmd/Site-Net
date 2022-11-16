@@ -118,13 +118,13 @@ def divide_chunks(l, n):
     for i in range(0, len(l), n):
         yield l[i : i + n]
 
-def h5_dataset_from_structure_list(hdf5_file_name, structure_dictionary):
+def h5_dataset_from_structure_list(hdf5_file_name, structure_dictionary,cpus):
     f = h5py.File(hdf5_file_name, "w", libver="latest")
     keys_list = list(structure_dictionary.keys())
     keys_chunked = list(divide_chunks(keys_list, 2048))
     for keys in tqdm(keys_chunked):
         values = [structure_dictionary[key] for key in keys]
-        pool = Pool(processes=cpu_count())
+        pool = Pool(processes=cpus)
         processed_values = [
             i
             for i in tqdm(
@@ -150,24 +150,28 @@ def h5_dataset_from_structure_list(hdf5_file_name, structure_dictionary):
             group.create_dataset("prim_size", data=cdd[key]["prim_size"])
             group.create_dataset("images", data=cdd[key]["images"])
 
-def dataset_to_hdf5(inputs,outputs,h5_file_name,pool,fold_n,supercell,supercell_size):
-     #Create tuples of crystal index names, pymatgen structures, and properties
-        structure_list = [(i, j, k) for i, j, k in zip(inputs.index, inputs, outputs)]
-        #Transform the structures into primitive unit cells, and then upscale if appropiate
-        processor = process_structures(supercell,supercell_size)
-        processed_structures = [
-            i for i in tqdm(pool.imap(processor.process_structure, [i[1] for i in structure_list]))
-        ]
-        #Create tuple of processed structure, target proprety, size of primitive unit cell, and number of images
-        processed_structures = [
-            (processed_structures[i][0], structure_list[i][2],processed_structures[i][1],processed_structures[i][2])
-            for i in range(len(structure_list))
-        ]
-        #Create a dictionary mapping each dataset index to the generated tuples
-        structure_dict = {i[0]: j for i, j in tqdm(zip(structure_list, processed_structures))}
-        #Initialize the h5 database with the pymatgen structures, the target, the primitive size, and the number of images
-        if not exists("Data/Matbench/" + h5_file_name + "_" + str(fold_n) + ".hdf5"):
-            h5_dataset_from_structure_list("Data/Matbench/" + h5_file_name + "_" + str(fold_n) + ".hdf5", structure_dict)
+def dataset_to_hdf5(inputs,outputs,h5_file_name,cpus,fold_n,supercell,supercell_size):
+    #Create tuples of crystal index names, pymatgen structures, and properties
+    structure_list = [(i, j, k) for i, j, k in zip(inputs.index, inputs, outputs)]
+    #Transform the structures into primitive unit cells, and then upscale if appropiate
+    processor = process_structures(supercell,supercell_size)
+    pool = Pool(processes=cpu_count())
+    processed_structures = [
+        i for i in tqdm(pool.imap(processor.process_structure, [i[1] for i in structure_list]))
+    ]
+    pool.close()
+    pool.join()
+    pool.terminate()
+    #Create tuple of processed structure, target proprety, size of primitive unit cell, and number of images
+    processed_structures = [
+        (processed_structures[i][0], structure_list[i][2],processed_structures[i][1],processed_structures[i][2])
+        for i in range(len(structure_list))
+    ]
+    #Create a dictionary mapping each dataset index to the generated tuples
+    structure_dict = {i[0]: j for i, j in tqdm(zip(structure_list, processed_structures))}
+    #Initialize the h5 database with the pymatgen structures, the target, the primitive size, and the number of images
+    if not exists("Data/Matbench/" + h5_file_name + "_" + str(fold_n) + ".hdf5"):
+        h5_dataset_from_structure_list("Data/Matbench/" + h5_file_name + "_" + str(fold_n) + ".hdf5", structure_dict,cpus)
 
 if __name__ == "__main__":
     #Arguments for whether to generate primitive cells or supercells, and what size the supercells should be capped at
@@ -175,7 +179,7 @@ if __name__ == "__main__":
     parser.add_argument('--cubic_supercell', default=False, action='store_true')
     parser.add_argument('--primitive', default=False, action='store_true')
     parser.add_argument("-s", "--supercell_size", default=100,type=int)
-    parser.add_argument("-c", "--cpu_cores",default = cpu_count()-1,type=int)
+    parser.add_argument("-w", "--number_of_worker_processes",default = 1,type=int)
     args = parser.parse_args()  
     if args.cubic_supercell:
         h5_file_name = "matbench_mp_gap_cubic_" + str(args.supercell_size)
@@ -187,8 +191,6 @@ if __name__ == "__main__":
         supercell_size = None
     else:
         raise(Exception("Need to specify either --primitive or --cubic_supercell on commandline, with -s argument controlling supercell size"))
-    #pool = Pool(cpu_count()-1)
-    pool = Pool(args.cpu_cores)
     task = MatbenchBenchmark().matbench_mp_gap
     task.load()
     fold_n = 1
@@ -197,9 +199,6 @@ if __name__ == "__main__":
         train_inputs, train_outputs = task.get_train_and_val_data(fold)
         test_inputs,test_outputs = task.get_test_data(fold,include_target=True)
         #Process the pymatgen structures and generate hdf5 database for training
-        dataset_to_hdf5(train_inputs,train_outputs,h5_file_name + "_train",pool,fold_n,supercell,supercell_size)
-        dataset_to_hdf5(test_inputs,test_outputs,h5_file_name + "_test",pool,fold_n,supercell,supercell_size)        
+        #dataset_to_hdf5(train_inputs,train_outputs,h5_file_name + "_train",args.number_of_worker_processes,fold_n,supercell,supercell_size)
+        dataset_to_hdf5(test_inputs,test_outputs,h5_file_name + "_test",args.number_of_worker_processes,fold_n,supercell,supercell_size)        
         fold_n += 1
-    pool.close()
-    pool.join()
-    pool.terminate()

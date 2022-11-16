@@ -596,10 +596,11 @@ def JIT_h5_load(
     max_len,
     overwrite=False,
     ignore_errors=False,
-    chunk_size=cpu_count() * 2,
+    chunk_size=32,
+    cpus=1,
     limit=None,
 ):
-    print(h5_file_name)
+    print("h5 file name is " + h5_file_name)
     key_data = h5py.File(h5_file_name, "r")
     keys = list(key_data.keys())
     shuffle(keys)
@@ -610,18 +611,15 @@ def JIT_h5_load(
         for i in range(0, len(l), n):
             yield l[i : i + n]
 
-    keys_list = list(divide_chunks(keys, chunk_size))
+    keys_list = list(divide_chunks(keys, chunk_size*cpus))
     results = []
-    print("Loading/Writing to h5 in size " + str(chunk_size) + " Chunks")
-
-    with Pool(cpu_count()) as pool:
-        for keys in tqdm(keys_list):
+    print("Initializing data from h5 file in size " + str(chunk_size*cpus) + " Chunks")
+    print("Worker process count is " + str(cpus))
+    for keys in tqdm(keys_list):
+        with Pool(cpus) as pool:
             m = multiprocessing.Manager()
             tasks = m.JoinableQueue()
-            keys_chunk_list = n_list_chunks(keys, (len(keys) // cpu_count()) // 4)
-            print("CPU count is")
-            print(cpu_count())
-            print("Engaging Parralel read / site compute")
+            keys_chunk_list = n_list_chunks(keys, (len(keys) // cpus))
             result_chunk = pool.starmap(
                 result_get,
                 [
@@ -638,19 +636,22 @@ def JIT_h5_load(
                     for keys_chunk in keys_chunk_list
                 ],
             )
-            for chunk in result_chunk:
-                results.extend(chunk)
+        #serialise the inputs
+        for chunk in result_chunk:
+            results.extend(chunk)
+        #If anything had to be computed write it to the file
+        if tasks.qsize() > 0:
             print("Writing do not terminate process")
+            print("Queue size is " + str(tasks.qsize()))
             tasks.put(None)
-            print("Queue size")
-            print(tasks.qsize())
             writer = Writer(tasks, h5_file_name)
             writer.start()
             tasks.join()
             writer.join()
             writer.close()
-            print("Writing complete")
-            multiprocessing.active_children()
+            print("Writing complete, safe to terminate")
+        #Kill any zombie workers
+        multiprocessing.active_children()
     return results
 
 
@@ -669,7 +670,8 @@ class torch_h5_cached_loader(Dataset):
         overwrite=False,
         ignore_errors=False,
         limit=None,
-        chunk_size=cpu_count() * 32,
+        chunk_size=32,
+        cpus = 1,
         max_len=None,
     ):
         self.chunk_size = chunk_size
@@ -683,6 +685,7 @@ class torch_h5_cached_loader(Dataset):
             ignore_errors=ignore_errors,
             limit=limit,
             chunk_size=chunk_size,
+            cpus=cpus
         )
 
     def __getitem__(self, idx):

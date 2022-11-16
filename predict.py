@@ -275,15 +275,16 @@ def train_model(config, Dataset):
 import pickle as pk
 
 if __name__ == "__main__":
-    torch.set_num_threads(32)
     parser = argparse.ArgumentParser(description="ml options")
     parser.add_argument("-c", "--config", default="test")
     parser.add_argument("-d", "--dataset", default="null")
     parser.add_argument("-n", "--limit", default=None,type=int)
     parser.add_argument("-m", "--model_name", default=None,type=str)
+    parser.add_argument("-w", "--number_of_worker_processes", default=1,type=int)
     args = parser.parse_args()
+    torch.set_num_threads(args.number_of_worker_processes)
     try:
-        print(args.config)
+        print("config is " + args.config)
         with open(str(args.config), "r") as config_file:
             config = yaml.load(config_file, Loader=yaml.FullLoader)
     except Exception as e:
@@ -300,15 +301,14 @@ if __name__ == "__main__":
         config["dynamic_batch"] = False
         config["Batch_Size"] = 128
         model = lightning_module_with_interaction_returns(config)
-        model.load_state_dict(torch.load(model_name,map_location=torch.device("cpu"))["state_dict"])
-        #for name, param in model.named_parameters():
-            #print(name)
-            #print(param)
+        model.load_state_dict(torch.load(model_name,map_location=torch.device("cpu"))["state_dict"], strict=False)
         Dataset = DIM_h5_Data_Module(
             config,
             max_len=None,
             ignore_errors=True,
             overwrite=False,
+            cpus=args.number_of_worker_processes,
+            chunk_size=32
         )  
         results = model.forward(Dataset.Dataset,return_truth=True,batch_size=128)
 

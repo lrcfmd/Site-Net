@@ -318,9 +318,11 @@ class DIM_h5_Data_Module(pl.LightningDataModule):
         config,
         overwrite=False,
         ignore_errors=False,
-        chunk_size=cpu_count() ** 2 * 16,
         max_len=100,
         Dataset=None,
+        cpus = 1,
+        chunk_size = 32,
+        **kwargs
     ):
 
         super().__init__()
@@ -333,8 +335,8 @@ class DIM_h5_Data_Module(pl.LightningDataModule):
         self.overwrite = overwrite
         self.ignore_errors = ignore_errors
         self.limit = config["Max_Samples"]
-        self.chunk_size = chunk_size
         self.max_len = max_len
+        self.cpus=cpus
         if Dataset is None:
             self.Dataset = torch_h5_cached_loader(
                 self.Site_Features,
@@ -344,6 +346,8 @@ class DIM_h5_Data_Module(pl.LightningDataModule):
                 ignore_errors=self.ignore_errors,
                 overwrite=self.overwrite,
                 limit=self.limit,
+                cpus=cpus,
+                chunk_size=chunk_size
             )
         else:
             self.Dataset = Dataset
@@ -362,7 +366,7 @@ class DIM_h5_Data_Module(pl.LightningDataModule):
                 collate_fn=collate_fn,
                 batch_sampler=SiteNet_batch_sampler(RandomSampler(self.Dataset_Train),self.batch_size),
                 pin_memory=False,
-                num_workers=cpu_count()-1,
+                num_workers=self.cpus,
                 prefetch_factor=8,
                 persistent_workers=True
             )
@@ -372,7 +376,7 @@ class DIM_h5_Data_Module(pl.LightningDataModule):
                 batch_size=self.batch_size,
                 collate_fn=collate_fn,
                 pin_memory=False,
-                num_workers=cpu_count()-1,
+                num_workers=self.cpus,
                 prefetch_factor=8,
                 persistent_workers=True
             )
@@ -384,7 +388,7 @@ class DIM_h5_Data_Module(pl.LightningDataModule):
                 collate_fn=collate_fn,
                 batch_sampler=SiteNet_batch_sampler(RandomSampler(self.Dataset_Val),self.batch_size),
                 pin_memory=False,
-                num_workers=cpu_count()-1,
+                num_workers=self.cpus,
                 prefetch_factor=8,
                 persistent_workers=True
             )
@@ -394,7 +398,7 @@ class DIM_h5_Data_Module(pl.LightningDataModule):
                 batch_size=self.batch_size,
                 collate_fn=collate_fn,
                 pin_memory=False,
-                num_workers=cpu_count()-1,
+                num_workers=self.cpus,
                 prefetch_factor=8,
                 persistent_workers=True
             )

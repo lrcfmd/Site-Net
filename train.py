@@ -75,5 +75,7 @@ if __name__ == "__main__":
         max_len=args.unit_cell_limit,
         ignore_errors=False,
         overwrite=bool(args.overwrite),
+        cpus=args.number_of_worker_processes,
+        chunk_size=32
     )
     train_model(config, Dataset)
