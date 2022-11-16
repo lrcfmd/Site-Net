@@ -6,7 +6,7 @@ python create_mp_gap_hdf5.py --cubic_supercell -s 100
 
 Once this has been generated, the model can be trained with
 
-python train.py -c config/PaperParams.yaml -f Data/Matbench/matbench_mp_gap_cubic_100_train_1.hdf5 -u 100
+python train.py -c config/PaperParams.yaml -f Data/Matbench/matbench_mp_gap_cubic_100_train_1.hdf5 -u 100 -w [number of cpu threads available]
 
 featurization is performed "just in time" and results from featurizers are cached in the hdf5 file for later use, the first run of train.py will take a long time as it generates the features
 
@@ -14,7 +14,7 @@ Training can be tracked using tensorboard, the outputs are generated in the ligh
 
 Once the model has trained the test score can be obtained with
 
-python predict.py -c config/PaperParams.yaml -m matbench_mp_gap_cubic_100_train_1.hdf5_best_PaperParams.ckpt -d Data/Matbench/matbench_mp_gap_cubic_100
+python predict.py -c config/PaperParams.yaml -m matbench_mp_gap_cubic_100_train_1.hdf5_best_PaperParams.ckpt -d Data/Matbench/matbench_mp_gap_cubic_100 -w [number of cpu threads available]
 
 The attention coefficient plots and the performance plots can be obtained after running predict.py by running
 

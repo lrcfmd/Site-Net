@@ -12,6 +12,7 @@ import yaml
 from pytorch_lightning.callbacks import *
 import argparse
 from pytorch_lightning.callbacks import ModelCheckpoint
+import torch
 
 compression_alg = "gzip"
 
@@ -57,9 +58,11 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--overwrite", default=False)
     parser.add_argument("-d", "--debug", default=False)
     parser.add_argument("-u", "--unit_cell_limit",default = 100,type=int)
+    parser.add_argument("-w", "--number_of_worker_processes", default=1,type=int)
     args = parser.parse_args()
+    torch.set_num_threads(args.number_of_worker_processes)
     try:
-        print(args.config)
+        print("config file is " + args.config)
         with open(str(args.config), "r") as config_file:
             config = yaml.load(config_file, Loader=yaml.FullLoader)
     except Exception as e:
