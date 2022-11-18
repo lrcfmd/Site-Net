@@ -199,6 +199,6 @@ if __name__ == "__main__":
         train_inputs, train_outputs = task.get_train_and_val_data(fold)
         test_inputs,test_outputs = task.get_test_data(fold,include_target=True)
         #Process the pymatgen structures and generate hdf5 database for training
-        #dataset_to_hdf5(train_inputs,train_outputs,h5_file_name + "_train",args.number_of_worker_processes,fold_n,supercell,supercell_size)
+        dataset_to_hdf5(train_inputs,train_outputs,h5_file_name + "_train",args.number_of_worker_processes,fold_n,supercell,supercell_size)
         dataset_to_hdf5(test_inputs,test_outputs,h5_file_name + "_test",args.number_of_worker_processes,fold_n,supercell,supercell_size)        
         fold_n += 1
