@@ -1,0 +1,86 @@
+label: "PaperParams_medium"
+
+###############
+#Features used#
+###############
+
+interaction_feature_size: 2
+Interaction_Features:
+- kwargs:
+    polynomial_degree: 1
+  name: distance_matrix
+- kwargs:
+    polynomial_degree: 1
+    log: !!bool True
+    max_clip: 10
+  name: non_sine_coulomb_matrix
+
+site_feature_size: 8
+embedding_size: 92
+Site_Features:
+- Featurizer_KArgs:
+    properties:
+    - Number
+    - AtomicWeight
+    - Row
+    - Column
+    - FirstIonizationEnergy
+    - Electronegativity
+    - AtomicRadius
+    - Density
+  Featurizer_PArgs: []
+  name: SiteElementalProperty
+
+###########################
+#Training Hyperparameters#
+###########################
+
+#Dynamic beatch size is based on number of unique sites not number of crystals
+dynamic_batch: !!bool True
+Batch_Size: 1200
+
+#Pytorch lightning optimizer name and hyper parameters
+Learning_Rate: 0.0008125971481941902
+Optimizer:
+  Kwargs:
+    amsgrad: true
+    eps: 1.0e-07
+    weight_decay: 0.0001
+  Name: AdamW
+
+#Allows arguments to be dynamically fed to the pytorch lightning trainer
+Trainer kwargs:
+  accumulate_grad_batches: 1
+  auto_lr_find: false
+  max_epochs: 100000000
+
+#Limit on dataset size, arbitrarily high number to disable
+Max_Samples: 10000
+
+#######################
+#Model Hyperparameters#
+#######################
+
+activation_function: mish
+set_norm: layer
+lin_norm: layer
+
+site_dim_per_head: 30
+attention_dim_interaction: 16
+
+attention_heads: 3
+attention_blocks: 2
+distance_cutoff: -1 #No cut off, positive values add a cut-off measured in angstroms, made performance worse in testing
+attention_hidden_layers:
+- 225
+k_softmax: -1 #No k softmax, available functionality but unused
+
+#Layers post attention blocks
+pre_pool_layers:
+- 94
+sym_func: mean
+post_pool_layers:
+- 200
+- 200
+- 200
+last_af_func: TReLU
