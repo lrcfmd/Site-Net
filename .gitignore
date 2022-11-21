@@ -16,4 +16,5 @@ lightning_logs/*/*
 inference_job.sh
 *.err
 *.out
+*.zip
 

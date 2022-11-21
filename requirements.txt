@@ -1,11 +1,11 @@
-In addition to standard anaconda packages
+In addition to an anaconda environment on python 3.9.13 with standard packages
 
 pytorch (With cuda)
 pytorch lightning
 torch scatter
+dscribe
+pymatgen
 matminer
 matbench
-pymatgen
 h5py
-dscribe
 compress-pickle
