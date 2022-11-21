@@ -1,4 +1,4 @@
-Implementation of "Site-Net: Using global self-attention and real-space supercells to capture long-range interactions in crystal structures" (https://arxiv.org/abs/2209.08190) using an additional computational trick to remove redundant calculations for identical sites. 
+Implementation of "Site-Net: Using global self-attention and real-space supercells to capture long-range interactions in crystal structures" (https://arxiv.org/abs/2209.08190) using an additional computational trick to remove redundant calculations for identical sites. Implemented in pytorch lightning using hdf5 as the data storage solution.
 
 #### Requirements ####
 
@@ -13,9 +13,23 @@ matminer
 matbench
 h5py
 compress-pickle
-#### Arguments for scripts ####
+#### Scripts and Arguments ####
+
+=== cif_zip_to_hdf5.py ===
+
+Produce a hdf5 file ready for use with train.py and predict.py using a zip of cif files and a csv defining supervised properties. Does not currently support disordered structures or multiple objectives.
+
+--primitive generates a dataset of primitive unit cells
+--cubic_supercell generates a dataset of supercells
+-s --supercell_size allows the size of the supercells to be specified
+-w --number_of_worker_processes allows the number of cpu threads used to be specified (default 1)
+-c --cif_zip Provide path to cif zip file
+-d --data_csv Provide path to csv containing a column called "file" containing cif file names and a column called "target" containin the associated supervised value
+-hd --h5_path Provide path for the new hdf5 file
 
 === create_mp_gap_hdf5.py ===
+
+Produce an hdf5 file for reproducing paper results
 
 --primitive generates a dataset of primitive unit cells
 --cubic_supercell generates a dataset of supercells
@@ -74,3 +88,9 @@ python plots.py
 the outputs will be generated in the histograms folder
 
 The lightning module is in lightning_module.py, individual torch modules are in modules.py, h5_handler.py contains the database management code, none of these files are to be run directly.
+
+#### configuration files ####
+
+yaml is used to configure the models, the paper parameters are defined in the config folder and can be adjusted. 
+
+User friendly way to change the featurizers used from the ones in the paper is a WIP. If you want to use your own featurizers, please check h5_handler.py where featurizers functions are in a dictionary that can be extended. The dictionary is populated currently with matminer, dscribe and pymatgen featurizers. 
