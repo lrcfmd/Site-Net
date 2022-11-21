@@ -100,10 +100,10 @@ class process_structures():
         #Matbench band gap dataset does not contain disorder, but this code is general
         if not supercell.is_ordered:
             pass
-            #oxi_dec = AutoOxiStateDecorationTransformation()
-            #supercell= oxi_dec.apply_transformation(supercell)
-            #order_trans = OrderDisorderedStructureTransformation()
-            #supercell = order_trans.apply_transformation(supercell)
+            oxi_dec = AutoOxiStateDecorationTransformation()
+            supercell= oxi_dec.apply_transformation(supercell)
+            order_trans = OrderDisorderedStructureTransformation()
+            supercell = order_trans.apply_transformation(supercell)
         return supercell,prim_size,images
 
 def generate_crystal_dictionary(struc_and_target):
