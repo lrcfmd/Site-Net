@@ -1,3 +1,5 @@
+THIS REPO HAS BEEN DEPRECATED IN FAVOR OF https://github.com/lrcfmd/Site-Net PLEASE CLONE THAT REPO INSTEAD, THIS REPO WILL BE REMOVED SHORTLY
+
 Steps for benchmarking a 100 atom supercell model on the first fold of the band gap task, 100 is less intensive to run than 500
 
 This implementation of Site-Net uses the hdf5 format for storing datasets, to initialize the hdf5 file first run
