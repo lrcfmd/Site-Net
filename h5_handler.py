@@ -584,7 +584,7 @@ def result_get(
 
 
 def n_list_chunks(lst, n):
-    """Yield successive n-sized chunks from lst."""
+    """Yield successive n-sized chunks from a list (lst)."""
     for i in range(0, len(lst), n):
         yield lst[i : i + n]
 
@@ -619,7 +619,7 @@ def JIT_h5_load(
         with Pool(cpus) as pool:
             m = multiprocessing.Manager()
             tasks = m.JoinableQueue()
-            keys_chunk_list = n_list_chunks(keys, (len(keys) // cpus))
+            keys_chunk_list = n_list_chunks(keys, (max(1,len(keys) // cpus)))
             result_chunk = pool.starmap(
                 result_get,
                 [
