@@ -293,12 +293,6 @@ class basic_callbacks(pl.Callback):
     def __init__(self,*pargs,filename = "current_model",**kwargs):
         super().__init__(*pargs,**kwargs)
         self.filename = filename + ".ckpt"
-    
-    def on_init_start(self, trainer):
-        print("Starting to init trainer!")
-
-    def on_init_end(self, trainer):
-        print("trainer is init now")
 
     def on_train_end(self, trainer, model):
         trainer.save_checkpoint("most_recent_complete_run.ckpt")
