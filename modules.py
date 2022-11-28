@@ -10,9 +10,9 @@ from torch_scatter.composite import scatter_std
 ################################
 # Helper Functions and classes #
 ################################
-#epsilon value
+#epsilon value for giving numerical stability to asymptotic function
 eps = 0.0000008
-#Creates a sequential module of linear layers + activation function + normalization for the interaction and site features
+#Creates a sequential module of linear layers + activation function + normalization for the interaction and site features, used in the attention block
 class set_seq_af_norm(nn.Module):
     def __init__(self,layers,af,norm):
         super().__init__()

@@ -404,8 +404,8 @@ class SiteNet_batch_sampler(Sampler):
         self.prim_sizes = {idx:self.sampler.data_source[idx]["prim_size"] for idx in tqdm(sampler)}
     def __iter__(self):
             #The VRAM required by the model in each batch is proportional to the number of unique atomic sites, or the length of the i axis
-            #Keep extending the batch with more crystals until the batch limit is exceeded
-            #Batch limit will be exceeded by at most 1 crystal to avoid throwing away indicies
+            #Keep extending the batch with more crystals until doing so again brings us over the batch size
+            #If extending the batch would bring it over the max batch size, yield the current batch and seed a new one
             sampler_iter = iter(self.sampler)
             batch = []
             size = 0
