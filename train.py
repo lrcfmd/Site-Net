@@ -30,7 +30,7 @@ def train_model(config, Dataset):
     mode="min",
 )
     trainer = pl.Trainer(
-        accelerator="gpu",
+        accelerator="auto",
         devices=1,
         callbacks=[
             basic_callbacks(filename=args.h5_file_name + str(config["label"])),
