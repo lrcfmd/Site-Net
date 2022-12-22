@@ -3,9 +3,18 @@ Implementation of "Site-Net: Using global self-attention and real-space supercel
 Requirements
 In addition to an anaconda environment on python 3.9.13 with standard packages
 
-pytorch (With cuda) pytorch lightning torch scatter dscribe pymatgen matminer matbench h5py compress-pickle
+pytorch (With cuda)
+pytorch lightning
+torch scatter
+dscribe
+pymatgen
+matminer
+matbench
+h5py
+compress-pickle
 
-Scripts and Arguments
++=+=+= Scripts and Arguments +=+=+=
+
 === cif_zip_to_hdf5.py ===
 
 Produce a hdf5 file ready for use with train.py and predict.py using a zip of cif files and a csv defining supervised properties. Does not currently support disordered structures or multiple objectives.
@@ -30,7 +39,8 @@ provide the size of the supercell (if applicable) with -s N where N is the maxim
 
 -c --config allows the path of the configuration file to be specified (default None) -f --dataset allows the path of the h5 dataset used for training to be specified (default None) -n --limit allows a smaller subset of the data to be used for the inference (default None) -m --model_name allows the checkpoint path to be specified (default None) -w --number_of_worker_processes allows the number of cpu threads to be specified (default 1)
 
-Steps for reproducing paper results, training + inference
++=+=+= Steps for reproducing paper results, training + inference +=+=+=
+
 Steps for benchmarking a 100 atom supercell model on the first fold of the band gap task, 100 is less intensive to run than 500
 
 This implementation of Site-Net uses the hdf5 format for storing datasets, to initialize the hdf5 file first run
@@ -66,4 +76,4 @@ The lightning module is in lightning_module.py, individual torch modules are in 
 configuration files
 yaml is used to configure the models, the paper parameters are defined in the config folder and can be adjusted.
 
-User friendly way to change the featurizers used from the ones in the paper is a WIP. If you want to use your own featurizers, please check h5_handler.py where featurizers functions are in a dictionary that can be extended. The dictionary is populated currently with matminer, dscribe and pymatgen featurizers.
+A User friendly way to change the featurizers used from the ones in the paper is a WIP. If you want to use your own featurizers, please check h5_handler.py where featurizers functions are in a dictionary that can be extended. The dictionary is populated currently with matminer, dscribe and pymatgen featurizers.
