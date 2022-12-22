@@ -53,6 +53,8 @@ Once the model has trained the test score can be obtained with
 
 python predict.py -c config/PaperParams.yaml -m matbench_mp_gap_cubic_100_train_1.hdf5_best_PaperParams.ckpt -f Data/Matbench/matbench_mp_gap_cubic_100_test_1.hdf5 -w [number of cpu threads available]
 
+In Data/checkpoints the reported model checkpoints can be found, the prefix is the training method (N atom supercell vs geometric cutoff) and the suffix is the ammount of data used (full is 10^5, medium is 10^4 and small is 10^3). Inference can be run on all of these checkpoints with the correct config file and dataset to reproduce table 2 and 3.
+
 The attention coefficient plots and the performance plots can be obtained after running predict.py by running
 
 python plots.py
