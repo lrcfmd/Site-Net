@@ -1,6 +1,6 @@
 Implementation of "Site-Net: Using global self-attention and real-space supercells to capture long-range interactions in crystal structures" (https://arxiv.org/abs/2209.08190). Implemented in pytorch lightning using hdf5 as the data storage solution. Performance improvements that remove redundant calculations have been added to make training significantly faster. These optimizations will be exapnded on in the full publication.
 
-Requirements
+=== Requirements for general usage ===
 In addition to an anaconda environment on python 3.9.13 with standard packages
 
 pytorch (With cuda)
@@ -20,6 +20,19 @@ matbench
 h5py
 
 compress-pickle
+
+=== Requirements for strict reproduction ===
+
+conda environment on python == 3.8.12
+cudatoolkit == 11.3.1
+pytorch == 1.10.1
+pytorch-lightning == 1.5.7
+pytorch-scatter == 2.0.9
+dscribe == 1.2.1
+pymatgen == 2022.0.17
+matminer == 0.7.4
+matbench == 0.5
+h5py == 1.12.1
 
 +=+=+= Scripts and Arguments +=+=+=
 
