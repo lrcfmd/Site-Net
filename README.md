@@ -46,7 +46,13 @@ Produce a hdf5 file ready for use with train.py and predict.py using a zip of ci
 
 Produce an hdf5 file for reproducing paper results
 
---primitive generates a dataset of primitive unit cells --cubic_supercell generates a dataset of supercells -s --supercell_size allows the size of the supercells to be specified -w --number_of_worker_processes allows the number of cpu threads used to be specified (default 1)
+--primitive generates a dataset of primitive unit cells
+
+--cubic_supercell generates a dataset of supercells
+
+-s --supercell_size allows the size of the supercells to be specified 
+
+-w --number_of_worker_processes allows the number of cpu threads used to be specified (default 1)
 
 either --primitive or --cubic_supercell must be used
 
@@ -54,11 +60,31 @@ provide the size of the supercell (if applicable) with -s N where N is the maxim
 
 === train.py ===
 
--c --config allows the path of the configuration file to be specified (default None) -f --h5_file_name allows the path of the h5 dataset used for training to be specified (default None) -l --load_checkpoints allows training to be resumed from the most recent checkpoint for a given config file (default 0) -o --overwrite will force the generation of new features, followed by overwriting, instead of reading them from the h5 file (default False) -d --debug will limit the model to loading the first 1000 samples (default False) -u --unit_cell_limit will exclude unit cells larger than this size from training (default 100) -w --number_of_worker_processes controls the maximum number of cpu threads that site-net will use (default 1)
+-c --config allows the path of the configuration file to be specified (default None) 
+
+-f --h5_file_name allows the path of the h5 dataset used for training to be specified (default None) 
+
+-l --load_checkpoints allows training to be resumed from the most recent checkpoint for a given config file (default 0) 
+
+-o --overwrite will force the generation of new features, followed by overwriting, instead of reading them from the h5 file (default False) 
+
+-d --debug will limit the model to loading the first 1000 samples (default False) 
+
+-u --unit_cell_limit will exclude unit cells larger than this size from training (default 100) 
+
+-w --number_of_worker_processes controls the maximum number of cpu threads that site-net will use (default 1)
 
 === predict.py ===
 
--c --config allows the path of the configuration file to be specified (default None) -f --dataset allows the path of the h5 dataset used for training to be specified (default None) -n --limit allows a smaller subset of the data to be used for the inference (default None) -m --model_name allows the checkpoint path to be specified (default None) -w --number_of_worker_processes allows the number of cpu threads to be specified (default 1)
+-c --config allows the path of the configuration file to be specified (default None) 
+
+-f --dataset allows the path of the h5 dataset used for training to be specified (default None) 
+
+-n --limit allows a smaller subset of the data to be used for the inference (default None) 
+
+-m --model_name allows the checkpoint path to be specified (default None) 
+
+-w --number_of_worker_processes allows the number of cpu threads to be specified (default 1)
 
 +=+=+= Steps for reproducing paper results, training + inference +=+=+=
 
@@ -68,29 +94,29 @@ This implementation of Site-Net uses the hdf5 format for storing datasets, to in
 
 python create_mp_gap_hdf5.py --cubic_supercell -s 100
 
-to create "Data/Matbench/matbench_mp_gap_cubic_100_train_1.hdf5" and "Data/Matbench/matbench_mp_gap_cubic_100_test_1.hdf5". These will contain the structure objects but will not be featurized.
+This will create files "Data/Matbench/matbench_mp_gap_cubic_100_train_1.hdf5" and "Data/Matbench/matbench_mp_gap_cubic_100_test_1.hdf5". These will contain the structure objects but will not contain any features.
 
-Once this has been generated, the model can be trained with
+The model can be trained with
 
 python train.py -c config/PaperParams.yaml -f Data/Matbench/matbench_mp_gap_cubic_100_train_1.hdf5 -u 100 -w [number of cpu threads available]
 
-featurization is performed "just in time" and results from featurizers are cached in the hdf5 file for later use, the first loading in of data by train.py will take a long time as it generates the features
+This will train a model using the hyper parameters from the paper (Table 1), on the training fold of the band gap task, limiting training to supercells of size 100 to ensure that all samples are coming from the same distribution. Featurization is performed "just in time" and results from featurizers are cached in the hdf5 file for later use, the first loading in of data by train.py will take a long time as it generates the features
 
-Training can be tracked using tensorboard, the outputs are generated in the lightning_logs folder, which is where tensorboard should be pointed to
+Training can be tracked using tensorboard, the outputs are generated in the lightning_logs folder, which is where tensorboard should be pointed to. Avg_val_loss is the validation MAE on the task.
 
-Model checkpoints are saved where the path is the "label" parameter in the config appended to the dataset file_name, the most recent checkpoint will be saved alongside the best validation score achieved, which will include "best". The models reported in the paper were the best validation scores achieved after the model had converged.
+Model checkpoints are saved where the path is the "label" parameter in the config appended to the dataset file_name, the most recent checkpoint will be saved alongside the best validation score achieved, the checkpoint associated with the best achieved validation score will have "best" included in the checkpoint name. The models reported in the paper were the best validation scores achieved, and were stopped after the models had converged and the "best" checkpoint was stable
 
-Once the model has trained the test score can be obtained with
+Once the model has trained the MAEs on the test fold can be obtained with.
 
 python predict.py -c config/PaperParams.yaml -m matbench_mp_gap_cubic_100_train_1.hdf5_best_PaperParams.ckpt -f Data/Matbench/matbench_mp_gap_cubic_100_test_1.hdf5 -w [number of cpu threads available]
 
 In Data/checkpoints the reported model checkpoints can be found, the prefix is the training method (N atom supercell vs geometric cutoff) and the suffix is the ammount of data used (full is 10^5, medium is 10^4 and small is 10^3). Inference can be run on all of these checkpoints with the correct config file and dataset to reproduce table 2 and 3.
 
-The attention coefficient plots and the performance plots can be obtained after running predict.py by running
+Running predict.py also dumps stats about the model that were used to construct paper figures such as the 2d histograms from the paper that show attention coefficients versus distance between atoms. These plots can be generated from the most recent run of predict.py by running
 
 python plots.py
 
-the outputs will be generated in the histograms folder
+plots.py accepts no arguments as it will read the most recent outputs of predict.py. The outputs of plots.py will be generated in the histograms folder. The file TrueVPred.png is figure 5. The file distance_coefficients.png is figure 6.
 
 The lightning module is in lightning_module.py, individual torch modules are in modules.py, h5_handler.py contains the database management code, none of these files are to be run directly.
 
