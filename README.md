@@ -47,9 +47,19 @@ h5py == 1.12.1
 
 === cif_zip_to_hdf5.py ===
 
-Produce a hdf5 file ready for use with train.py and predict.py using a zip of cif files and a csv defining supervised properties. Does not currently support disordered structures or multiple objectives.
+Produce a hdf5 file ready for use with train.py and predict.py using a zip of cif files and a csv defining supervised properties. Does not currently support disordered structures or multiple objectives. This script isn't used in the paper, rather, it exists as a way to run site-net on arbitrary datasets by mapping the properties and cif files to an hdf5 database.
 
---primitive generates a dataset of primitive unit cells --cubic_supercell generates a dataset of supercells -s --supercell_size allows the size of the supercells to be specified -w --number_of_worker_processes allows the number of cpu threads used to be specified (default 1) -c --cif_zip Provide path to cif zip file -d --data_csv Provide path to csv containing a column called "file" containing cif file names and a column called "target" containin the associated supervised value -hd --h5_path Provide path for the new hdf5 file
+--primitive generates a dataset of primitive unit cells --cubic_supercell generates a dataset of supercells 
+
+-s --supercell_size allows the size of the supercells to be specified 
+
+-w --number_of_worker_processes allows the number of cpu threads used to be specified (default 1) 
+
+-c --cif_zip Provide path to cif zip file 
+
+-d --data_csv Provide path to csv containing a column called "file" containing cif file names and a column called "target" containin the associated supervised value 
+
+-hd --h5_path Provide path for the new hdf5 file
 
 === create_mp_gap_hdf5.py ===
 
