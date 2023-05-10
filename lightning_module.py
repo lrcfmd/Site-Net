@@ -183,9 +183,9 @@ class SiteNet(pl.LightningModule):
         return torch.cat([Atomic_Embedding, *features], dim=1)
 
     #Inference mode, return the prediction
-    def forward(self, b, batch_size=16,return_truth = False):
+    def forward(self, inference_data, batch_size=16,return_truth = False):
         self.eval()
-        lob = [b[i : min(i + batch_size,len(b))] for i in range(0, len(b), batch_size)]
+        lob = [inference_data[i : min(i + batch_size,len(inference_data))] for i in range(0, len(inference_data), batch_size)]
         Encoding_list = []
         targets_list= []
         print("Inference in batches of %s" % batch_size)
@@ -206,7 +206,6 @@ class SiteNet(pl.LightningModule):
                     Interaction_Features,
                     Attention_Mask,
                     Batch_Mask,
-                    return_std=False,
                 )
                 Encoding = af_dict[self.config["last_af_func"]](self.decoder(Encoding))
                 Encoding_list.append(Encoding)

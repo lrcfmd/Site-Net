@@ -203,7 +203,9 @@ if __name__ == "__main__":
         data = pd.read_csv(args.data_csv)
         data["structure"] = [Structure.from_str(cif_zip.read(i).decode("utf-8"),"cif") for i in data["file"]]
         structures = pd.Series(data["structure"],data.index)
-        targets = pd.Series(data["target"],data.index)
+        targets = pd.Series(data["target"].astype(float),data.index)
+        structures.index = data["file"]
+        targets.index = data["file"]
         dataset_to_hdf5(structures,targets,args.h5_path,args.number_of_worker_processes,supercell,supercell_size)
 
 

@@ -508,7 +508,7 @@ def result_get(
     with h5py.File(h5_file_name, "r") as h5_file:
         result = [
             {"ICSD": i} for i in keys
-        ]  # ID is no longer tied to the ICSD, this is a vestigal name for backwards compatability with old datasets
+        ]  # Originally worked with the ICSD, This is a vestigal name for the ID of the crystal in the dataset
         # Reading
         del h5_file_name
         structure_args = ((key, h5_file) for key in keys)
@@ -567,8 +567,10 @@ def result_get(
         result = list_to_dict(result, targets, "target")
         result = list_to_dict(result, prim_sizes, "prim_size")
         result = list_to_dict(result, images, "images")
+        result = list_to_dict(result, keys, "file_key")
         h5_file.close()
-        keys = [
+        #The features are scrubbed to check for nans, this tags the features
+        keys_to_clean = [
             "Site_Feature_Tensor",
             "Interaction_Feature_Tensor",
             "Atomic_ID",
@@ -578,7 +580,7 @@ def result_get(
             "images",
         ]
         # print(site_result)
-        result = [i for i in [clean_result(i, keys, max_len) for i in result]]
+        result = [i for i in [clean_result(i, keys_to_clean, max_len) for i in result]]
         clean_results(result)
         return result
 
