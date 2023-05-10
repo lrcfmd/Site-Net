@@ -56,7 +56,7 @@ if __name__ == "__main__":
     parser.add_argument("-l", "--load_checkpoint", default=0)
     parser.add_argument("-f", "--h5_file_name", default=None)
     parser.add_argument("-o", "--overwrite", default=False)
-    parser.add_argument("-d", "--debug", default=False)
+    parser.add_argument("-n", "--limit", default=None,type=int)
     parser.add_argument("-u", "--unit_cell_limit",default = 100,type=int)
     parser.add_argument("-w", "--number_of_worker_processes", default=1,type=int)
     parser.add_argument("-e", "--experiment_name", default=None)
@@ -77,8 +77,8 @@ if __name__ == "__main__":
     if args.experiment_name:
         config["label"] = config["label"] + "_" + str(args.experiment_name)
     config["h5_file"] = args.h5_file_name
-    if bool(args.debug) == True:
-        config["Max_Samples"] = 1000
+    if args.limit:
+        config["Max_Samples"] = args.limit
     Dataset = DIM_h5_Data_Module(
         config,
         max_len=args.unit_cell_limit,

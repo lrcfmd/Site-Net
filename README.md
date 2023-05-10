@@ -42,7 +42,7 @@ This script trains a site-net model on the provided hdf5 dataset using the hyper
 
 #####-o \--overwrite will force the generation of new features, followed by overwriting, instead of reading them from the h5 file (default False) 
 
-#####-d \--debug will limit the model to loading the first 1000 samples (default False) 
+#####-n \--limit will limit the model to loading the first n samples, this is normally for debug purposes / test runs (default None) 
 
 #####-u \--unit_cell_limit will exclude unit cells larger than this size from training (default 100) 
 
