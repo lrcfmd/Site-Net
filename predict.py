@@ -104,7 +104,6 @@ if __name__ == "__main__":
         cpus=args.number_of_worker_processes,
         chunk_size=32
     ) 
-    print([i["file_key"] for i in Dataset.Dataset])
     results = model.forward(Dataset.Dataset,return_truth=True,batch_size=128)
     predictions = results[0].numpy().flatten()
     truth = results[1].numpy().flatten()
@@ -112,11 +111,11 @@ if __name__ == "__main__":
     print("MAE is " + str(MAE.mean()))
 
     if args.data_csv:
-        print("CSV file provided, this CSV file should be the CSV used to generate the hdf5 file from a zip of cifs, the predictions will be added as a third column")
+        print("Populating " + args.data_csv +" with predictions")
         df = pd.read_csv(args.data_csv,index_col="file")
         df["Prediction"] = pd.Series(predictions,[i["file_key"] for i in Dataset.Dataset]) #Indicies for the prediction pandas series are aligned with the 
         df.to_csv(args.data_csv)
-        print("Predictions saved to CSV file!")
+        print("Saved!")
 
     
 
