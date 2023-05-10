@@ -2,7 +2,6 @@
 lightning_logs/*/*
 *.sdic
 *.pyc
-*.csv
 *.png
 *.ckpt
 *.tar.gz
@@ -15,6 +14,7 @@ lightning_logs/*/*
 inference_job.sh
 *.err
 *.out
-*.zip
 *.pk
 
+attention_logs.csv
+parity plot data.csv
