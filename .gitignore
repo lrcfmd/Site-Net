@@ -9,8 +9,6 @@ lightning_logs/*/*
 *.local.yaml
 *.local
 .vscode*
-*.sh
-*sh*
 inference_job.sh
 *.err
 *.out
