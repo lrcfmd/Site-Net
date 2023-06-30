@@ -24,7 +24,8 @@ from lightning_module import collate_fn
 from lightning_module import af_dict as lightning_af_dict
 from torch_scatter import segment_coo,segment_csr
 from torch import nn
-#monkeypatches
+import pickle as pk
+#monkeypatches to extract the fine grained details of the attention mechanism when run in inference, bit of a spaghetti mess but keeps these modifications out of the mainline code where they are not needed
 class TReLU(torch.autograd.Function):
     """
     A transparent version of relu that has a linear gradient but sets negative values to zero,
@@ -51,7 +52,7 @@ class SiteNetAttentionBlockwreturns(SiteNetAttentionBlock):
         self, site_dim, interaction_dim, heads=4, af="relu", set_norm="batch",tdot=False,k_softmax=-1,attention_hidden_layers=[256,256]
     ):
         super().__init__(site_dim, interaction_dim, heads, af, set_norm,tdot,k_softmax,attention_hidden_layers)
-    def forward(self, logger,x, interaction_Features, Attention_Mask,Batch_Mask,cutoff_mask=None, m=None):
+    def forward(self, logger,x, interaction_Features, Attention_Mask,Batch_Mask,cutoff_mask=None, m=None,dm=None):
         #Construct the Bond Features x_ije
         x_i = x[Batch_Mask["attention_i"],:]
         x_j = x[Batch_Mask["attention_j"],:]
@@ -62,7 +63,12 @@ class SiteNetAttentionBlockwreturns(SiteNetAttentionBlock):
         if cutoff_mask is not None:
             multi_headed_attention_weights[cutoff_mask] = float("-infinity")
         multi_headed_attention_weights = k_softmax(multi_headed_attention_weights, 1,self.k_softmax) #K_softmax is unused in the paper, ability to disable message passing beyond the highest N coefficients
+
+        long_range_coefficients = dm.unsqueeze(-1).repeat(1,1,3)*multi_headed_attention_weights
+        long_range_coefficients = torch.amax(long_range_coefficients,1)
+        long_range_coefficients = segment_coo(long_range_coefficients,Batch_Mask["COO"],reduce="max")
         logger.append(multi_headed_attention_weights)
+
         #Compute the attention weights and perform attention
         x = torch.einsum(
             "ijk,ije->iek",
@@ -74,7 +80,7 @@ class SiteNetAttentionBlockwreturns(SiteNetAttentionBlock):
         m = torch.cat([m, x], dim=1) if m != None else x
         #Compute the new interaction features
         New_interaction_Features = self.ije_to_Interaction_Features(x_ije) #g^I
-        return x, New_interaction_Features, m, logger
+        return x, New_interaction_Features, m, logger,long_range_coefficients
 class encoder_with_interaction_returns(SiteNetEncoder):
     def __init__(
         self,
@@ -141,10 +147,13 @@ class encoder_with_interaction_returns(SiteNetEncoder):
             self.af(self.site_featurization(Site_Features))
         )
         logger.append(Interaction_Features)
+        distance_matrix = Interaction_Features[:,:,0].detach().clone()
+        long_range_coefficients_list = []
         for layer in self.Attention_Blocks:
-            Site_Features, interaction_Features, global_summary,logger = layer(logger,
-                Site_Features, interaction_Features, Attention_Mask,Batch_Mask, cutoff_mask=cutoff_mask, m=global_summary
+            Site_Features, interaction_Features, global_summary,logger,long_range_coefficients = layer(logger,
+                Site_Features, interaction_Features, Attention_Mask,Batch_Mask, cutoff_mask=cutoff_mask, m=global_summary,dm=distance_matrix
             )
+            long_range_coefficients_list.append(long_range_coefficients)
 
         for pre_pool_layer, pre_pool_layer_norm in zip(
             self.pre_pool_layers, self.pre_pool_layers_norm
@@ -164,6 +173,8 @@ class encoder_with_interaction_returns(SiteNetEncoder):
             Global_Representation = post_pool_layer_norm(
                 self.af(post_pool_layer(Global_Representation))
             )
+        long_range_coefficients = torch.stack(long_range_coefficients_list)
+        logger.append(long_range_coefficients)
 
         return Global_Representation,logger
 class lightning_module_with_interaction_returns(SiteNet):
@@ -203,6 +214,7 @@ class lightning_module_with_interaction_returns(SiteNet):
                 Encoding_list.append(Encoding)
                 targets_list.append(batch_dictionary["target"])
                 Logger_list.append(logger)
+
         Encoding = torch.cat(Encoding_list, dim=0)
         targets = torch.cat(targets_list, dim=0)
         self.train()
@@ -318,19 +330,34 @@ if __name__ == "__main__":
     truth = results[1].numpy().flatten()
     MAE = np.abs(truth-predictions)
     print(MAE.mean())
+    print("Test MAE produced, outputting attention logs for figure reconstruction, this may take a few minutes")
+
     results_df = pd.DataFrame([predictions,truth,MAE]).transpose()
     results_df.to_csv("parity plot data.csv")
     results_list.append(results_df)
-    MAE_clamped = np.abs(truth-np.clip(predictions,0,None))     
+
+    #Data structure for the attention coefficients coming out of the model is nasty, this code cleans it up
+    #This code rearranges the heirarchy of the attention logs and returns a list of all the attention coefficients and the distance between the atoms involved
     len_1 = len(results[2])
     len_2 = len(results[2][0])
-    attention_logs = [[results[2][j][i] for j in range(len_1)] for i in range(len_2-1)]
-    attention_logs = [[j.flatten(end_dim=1) for j in i] for i in attention_logs]
-    attention_logs = [torch.cat(i,dim=0) for i in attention_logs]
-    attention_logs = torch.cat(attention_logs,dim=1)
-    t_np = attention_logs.numpy() #convert to Numpy array
+    attention_logs = [[results[2][j][i] for j in range(len_1)] for i in range(len_2)]
+    attention_logs_distance_correlation = attention_logs[:len_2-2]
+    attention_logs_distance_correlation = [[j.flatten(end_dim=1) for j in i] for i in attention_logs_distance_correlation]
+    attention_logs_distance_correlation = [torch.cat(i,dim=0) for i in attention_logs_distance_correlation]
+    attention_logs_distance_correlation = torch.cat(attention_logs_distance_correlation,dim=1)
+    t_np = attention_logs_distance_correlation.numpy() #convert to Numpy array
     df = pd.DataFrame(t_np,columns=["x1","x2","y11","y12","y13","y21","y22","y23"]) #convert to a dataframe
-    df.to_csv("attention_logs.csv",index=False) #save to file
+    df.to_csv("attention_logs.csv",index=False) #save attention coefficients to csv for later plotting
+    print("Outputting Structural coefficients, this may take a minute or two")
+    #Compute the long range coefficient for each structure
+    structure_LR = attention_logs[-2:]
+    structure_coefficients = torch.cat([torch.transpose(i,0,1) for i in structure_LR[0]])
+    structure_coefficients = structure_coefficients.reshape(structure_coefficients.shape[0],-1)
+    structures = [j for i in structure_LR[1] for j in i]  
+    structure_coefficients = pd.DataFrame(structure_coefficients.numpy(),columns=["y11","y12","y13","y21","y22","y23"])
+    structure_coefficients["Reduced Composition"] = [i.composition.reduced_formula for i in structures]
+    structure_coefficients["struc_pickle"] = [pk.dumps(i) for i in structures]
+    structure_coefficients.to_csv("Long_Range_Coefficients.csv")
 
 
 
