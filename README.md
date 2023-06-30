@@ -130,6 +130,10 @@ Runs inference on the given hdf5 dataset using the model provided. Unlike predic
 
 -w \--number_of_worker_processes allows the number of cpu threads to be specified (default 1)
 
+### long-range analysis.ipynb ###
+
+this jupyter notebook contains instructions on how to obtain the long-range coefficient plots after running predict_reproduce.py. This work is analysis requires the external application CrystIT, which has been provided for this purpose.
+
 ## configuring the model
 yaml is used to configure the models, the paper parameters are defined in the config folder and can be adjusted.
 
