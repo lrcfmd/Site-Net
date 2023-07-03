@@ -132,7 +132,7 @@ Runs inference on the given hdf5 dataset using the model provided. Unlike predic
 
 ### long-range analysis.ipynb ###
 
-this jupyter notebook contains instructions on how to obtain the long-range coefficient plots after running predict_reproduce.py. This work is analysis requires the external application CrystIT, which has been provided for this purpose.
+this jupyter notebook contains instructions on how to obtain the long-range coefficient plots after running predict_reproduce.py. This analysis requires the external application CrystIT, which has been provided for this purpose. The notebook will prompt when to use the external CrystIT application and how to use the outputs to obtain the required plots.
 
 ## configuring the model
 yaml is used to configure the models, the paper parameters are defined in the config folder and can be adjusted.
