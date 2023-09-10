@@ -1,4 +1,4 @@
-name: pytorch_2201
+name: pytorch_22012
 channels:
   - pyg
   - pytorch
@@ -25,6 +25,6 @@ dependencies:
         - scikit-learn==1.0
         - scienceplots==1.0.9
         - matbench==0.5
-        - numpy=1.22.4
-        - numba=0.51.2
+        - numpy==1.22.4
+        - numba==0.51.2
 prefix: /users/sgmmora2/volatile/anaconda3/envs/pytorch_2201
