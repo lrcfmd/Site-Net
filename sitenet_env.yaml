@@ -18,8 +18,6 @@ dependencies:
   - h5py=3.6.0
   - tensorboard=2.4.0
   - setuptools=58.0.4
-  - numpy=1.22.4
-  - numba=0.51.2
   - pip:
         - compress-pickle==2.1.0
         - dill==0.3.4
@@ -27,4 +25,6 @@ dependencies:
         - scikit-learn==1.0
         - scienceplots==1.0.9
         - matbench==0.5
+        - numpy=1.22.4
+        - numba=0.51.2
 prefix: /users/sgmmora2/volatile/anaconda3/envs/pytorch_2201
