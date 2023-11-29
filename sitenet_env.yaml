@@ -1,4 +1,4 @@
-name: pytorch_22012
+name: sitenet_2201
 channels:
   - pyg
   - pytorch
@@ -19,12 +19,15 @@ dependencies:
   - tensorboard=2.4.0
   - setuptools=58.0.4
   - pip:
-        - compress-pickle==2.1.0
-        - dill==0.3.4
-        - h5py==3.6.0
-        - scikit-learn==1.0
-        - scienceplots==1.0.9
-        - matbench==0.5
-        - numpy==1.22.4
-        - numba==0.51.2
-prefix: /users/sgmmora2/volatile/anaconda3/envs/pytorch_2201
+      - compress-pickle==2.1.0
+      - dill==0.3.4
+      - h5py==3.6.0
+      - scikit-learn==1.0
+      - scienceplots==1.0.9
+      - matbench==0.5
+      - numpy==1.22.4
+      - numba==0.51.2
+      - ruamel.yaml<0.18.0
+      - pymatgen==2022.0.17
+      - ipykernel
+prefix: /users/sgmmora2/volatile/anaconda3/envs/sitenet_2201
