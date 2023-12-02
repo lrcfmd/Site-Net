@@ -21,3 +21,4 @@ Long_Range_Coefficients_bandgap.csv
 Long_Range_Coefficients_bandgap_with_primitives.csv
 Long_Range_Coefficients_formationenergy_with_primitives.csv
 .gitignore
+results_test/*

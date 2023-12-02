@@ -617,8 +617,8 @@ def JIT_h5_load(
     results = []
     print("Initializing data from h5 file in size " + str(chunk_size*cpus) + " Chunks")
     print("Worker process count is " + str(cpus))
-    for keys in tqdm(keys_list):
-        with Pool(cpus) as pool:
+    with Pool(cpus) as pool:
+        for keys in tqdm(keys_list):
             m = multiprocessing.Manager()
             tasks = m.JoinableQueue()
             keys_chunk_list = n_list_chunks(keys, (max(1,len(keys) // cpus)))

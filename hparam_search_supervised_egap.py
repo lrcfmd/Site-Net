@@ -20,6 +20,7 @@ from joblib import wrap_non_picklable_objects
 from torch.nn.utils.rnn import pad_sequence
 import yaml
 from functools import partial
+from ray.tune.suggest import ConcurrencyLimiter
 
 
 site_feauturizers_dict = matminer.featurizers.site.__dict__
@@ -112,9 +113,9 @@ def train_model(config, data=None, checkpoint_dir=None):
 
 
 def train_infomax_asha_ng(config, Dataset, scheduler):
-    ray.init()
+    ray.init(num_cpus=8,num_gpus=1)
     reporter = CLIReporter(metric_columns=["val_loss", "training_iteration"])
-    resources_per_trial = {"cpu": cpu_count() // 4, "gpu": 1}
+    resources_per_trial = {"cpu": 8, "gpu": 1}
     # ng_kwargs = {
     #     "embedding_size": ng.p.Scalar(lower=1, upper=512).set_integer_casting(),
     #     "graph_embedding_dim_per_block_per_head": ng.p.Scalar(
@@ -177,6 +178,7 @@ def train_infomax_asha_ng(config, Dataset, scheduler):
         metric="val_loss",
         space=hopt_kwargs,
     )
+    search_algorithm = ConcurrencyLimiter(search_algorithm,1)
     resume = False
     if int(sys.argv[3]) == 1:
         resume = True
@@ -186,6 +188,7 @@ def train_infomax_asha_ng(config, Dataset, scheduler):
         resources_per_trial=resources_per_trial,
         progress_reporter=reporter,
         scheduler=scheduler,
+        max_concurrent_trials=1,
         config=config,
         raise_on_failed_trial=False,
         max_failures=0,
@@ -264,4 +267,5 @@ if __name__ == "__main__":
         grace_period=300,
         max_t=600,
     )
+    
     train_infomax_asha_ng(config, Dataset, ASHA)
